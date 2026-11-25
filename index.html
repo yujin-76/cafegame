@@ -1,0 +1,3211 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>수도권 카페 타이쿤 (Metro Cafe Tycoon)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      font-family: 'Noto Sans KR', sans-serif;
+      background-color: #140f0c;
+      color: #f5efe8;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    .font-mono-code { font-family: 'JetBrains Mono', monospace; }
+
+    /* Safe Area 여백 대응 (노치/홈바 기기) */
+    .safe-top { padding-top: max(0.5rem, env(safe-area-inset-top)); }
+    .safe-bottom { padding-bottom: max(0.6rem, env(safe-area-inset-bottom)); }
+
+    /* 창밖 시간대별 하늘 그라데이션 */
+    .sky-dawn { background: linear-gradient(180deg, #1e1b4b 0%, #6d28d9 40%, #f472b6 75%, #fed7aa 100%); }
+    .sky-morning { background: linear-gradient(180deg, #0284c7 0%, #38bdf8 48%, #bae6fd 82%, #fef9c3 100%); }
+    .sky-afternoon { background: linear-gradient(180deg, #0369a1 0%, #0ea5e9 55%, #7dd3fc 100%); }
+    .sky-sunset { background: linear-gradient(180deg, #1e1b4b 0%, #831843 38%, #ea580c 74%, #fde047 100%); }
+    .sky-night { background: linear-gradient(180deg, #020617 0%, #0f172a 55%, #1e293b 100%); }
+    .sky-cloudy { background: linear-gradient(180deg, #334155 0%, #475569 55%, #64748b 100%); }
+
+    /* 날씨 파티클 (비 / 눈) */
+    @keyframes rainDropFall {
+      0% { transform: translateY(-20px) translateX(0); opacity: 0; }
+      15% { opacity: 0.85; }
+      100% { transform: translateY(450px) translateX(-28px); opacity: 0; }
+    }
+    .rain-streak {
+      position: absolute;
+      width: 1.5px;
+      height: 22px;
+      background: linear-gradient(to bottom, rgba(186,230,253,0), rgba(186,230,253,0.9));
+      animation: rainDropFall linear infinite;
+      pointer-events: none;
+    }
+
+    @keyframes snowFlakeFall {
+      0% { transform: translateY(-15px) translateX(0) rotate(0deg); opacity: 0; }
+      20% { opacity: 0.9; }
+      50% { transform: translateY(210px) translateX(14px) rotate(180deg); }
+      100% { transform: translateY(450px) translateX(-10px) rotate(360deg); opacity: 0; }
+    }
+    .snow-flake {
+      position: absolute;
+      width: 5px;
+      height: 5px;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 0 6px rgba(255,255,255,0.8);
+      animation: snowFlakeFall linear infinite;
+      pointer-events: none;
+    }
+
+    /* 조명 & 스팀 애니메이션 */
+    @keyframes pendantSway {
+      0%, 100% { transform: rotate(-1.2deg); }
+      50% { transform: rotate(1.2deg); }
+    }
+    .pendant-lamp {
+      transform-origin: top center;
+      animation: pendantSway 5s ease-in-out infinite;
+    }
+
+    @keyframes steamRise {
+      0% { transform: translateY(0) scale(0.75); opacity: 0.85; }
+      100% { transform: translateY(-38px) scale(1.35); opacity: 0; }
+    }
+    .steam-particle {
+      animation: steamRise 1.6s ease-out infinite;
+      pointer-events: none;
+    }
+
+    @keyframes floatIncome {
+      0% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -62px) scale(1.18); }
+    }
+    .float-income {
+      position: fixed;
+      pointer-events: none;
+      animation: floatIncome 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      z-index: 80;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.95);
+    }
+
+    /* 카운터 오브젝트 터치감 & 호버 */
+    .desk-item {
+      transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s ease, background-color 0.2s ease;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    @media (hover: hover) {
+      .desk-item:hover {
+        transform: translateY(-4px) scale(1.03);
+        filter: drop-shadow(0 8px 16px rgba(251, 191, 36, 0.3));
+      }
+    }
+    .desk-item:active {
+      transform: scale(0.95);
+    }
+
+    @keyframes phoneBuzz {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(-3deg); }
+      50% { transform: rotate(3deg); }
+      75% { transform: rotate(-2deg); }
+    }
+    .phone-alert-buzz {
+      animation: phoneBuzz 0.75s ease-in-out infinite;
+    }
+
+    @keyframes pinGlow {
+      0%, 100% { box-shadow: 0 0 10px rgba(251, 191, 36, 0.85), 0 0 20px rgba(245, 158, 11, 0.5); }
+      50% { box-shadow: 0 0 18px rgba(251, 191, 36, 1), 0 0 32px rgba(245, 158, 11, 0.85); }
+    }
+    .metro-pin-lit { animation: pinGlow 2.2s infinite ease-in-out; }
+
+    @keyframes guestBob {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-3px); }
+    }
+    .guest-bob { animation: guestBob 2.6s ease-in-out infinite; }
+
+    /* 지도 뷰포트 터치 제스처 전용 영역 */
+    .map-touch-zone {
+      touch-action: none;
+    }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #181310; }
+    ::-webkit-scrollbar-thumb { background: #4a3b32; border-radius: 9999px; }
+  </style>
+</head>
+<body class="relative">
+
+  <!-- =========================================================
+       1. 온보딩 모달 (신규 창업: 고유 ID + 4자리 PIN + 상호명 중복 검사 / 기존 매장 클라우드 이어하기)
+       ========================================================= -->
+  <div id="onboarding-modal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <!-- STEP 1: 신규 창업 / 기존 매장 불러오기 탭 -->
+    <div id="onboard-step1" class="bg-[#1e1815] border border-amber-700/50 rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl my-auto">
+      <div class="flex items-center justify-between mb-3">
+        <span class="px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-[11px] font-bold">METRO CAFE TYCOON</span>
+        <span id="fb-conn-badge" class="text-[11px] px-2.5 py-0.5 rounded-full bg-stone-800 text-stone-400">🔄 서버 연결중...</span>
+      </div>
+      <h1 class="text-xl sm:text-2xl font-black text-amber-100">☕ 수도권 카페 타이쿤</h1>
+      <p class="text-[11px] text-stone-400 mt-1 leading-relaxed">
+        고유 아이디와 4자리 비밀번호로 클라우드에 자동 저장되어, <strong class="text-amber-300">PC와 모바일 어디서든</strong> 이어서 운영할 수 있습니다.
+      </p>
+
+      <!-- 탭 전환: 신규 창업하기 / 기존 매장 불러오기 -->
+      <div class="grid grid-cols-2 gap-1.5 mt-3.5 bg-[#120f0d] p-1 rounded-2xl border border-stone-800 text-xs font-bold">
+        <button type="button" id="tab-onboard-new" onclick="switchOnboardTab('new')"
+          class="py-2 rounded-xl bg-amber-600 text-white transition">
+          ✨ 신규 창업하기
+        </button>
+        <button type="button" id="tab-onboard-load" onclick="switchOnboardTab('load')"
+          class="py-2 rounded-xl text-stone-400 hover:text-stone-200 transition">
+          ☁️ 기존 매장 불러오기
+        </button>
+      </div>
+
+      <!-- TAB A: 신규 창업하기 -->
+      <div id="onboard-panel-new" class="space-y-3 mt-3.5">
+        <div>
+          <label class="block text-xs font-bold text-stone-300 mb-1">사장님 고유 아이디 (영문·숫자 4~16자 / 중복 불가)</label>
+          <div class="flex gap-2">
+            <input id="input-userid" type="text" maxlength="16" autocapitalize="none" oninput="onUserIdInput()" placeholder="예: chipoo2026"
+              class="flex-1 min-w-0 px-3.5 py-2 rounded-xl bg-[#120f0d] border border-stone-700 text-sm font-mono-code focus:outline-none focus:border-amber-500" />
+            <button type="button" onclick="verifyUserIdServer()" id="btn-check-userid"
+              class="px-3 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 active:scale-95 text-xs font-bold text-amber-300 shrink-0 transition">
+              ID 중복확인
+            </button>
+          </div>
+          <p id="userid-status" class="text-[11px] mt-1 text-stone-400">다른 기기에서 불러올 때 사용할 고유 아이디입니다.</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-xs font-bold text-stone-300 mb-1">4자리 PIN 번호</label>
+            <input id="input-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" oninput="onPinOrNickInput()" placeholder="숫자 4자리"
+              class="w-full px-3.5 py-2 rounded-xl bg-[#120f0d] border border-stone-700 text-sm font-mono-code tracking-widest focus:outline-none focus:border-amber-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-stone-300 mb-1">사장님 닉네임</label>
+            <input id="input-nickname" type="text" maxlength="10" oninput="onPinOrNickInput()" placeholder="예: 치푸사장"
+              class="w-full px-3.5 py-2 rounded-xl bg-[#120f0d] border border-stone-700 text-sm focus:outline-none focus:border-amber-500" />
+          </div>
+        </div>
+
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label class="text-xs font-bold text-stone-300">카페 상호명 (전 서버 중복 불가)</label>
+            <button type="button" onclick="pickRandomCafeName()" class="text-xs text-amber-400 font-bold py-0.5 px-1.5">🎲 랜덤 추천</button>
+          </div>
+          <div class="flex gap-2">
+            <input id="input-cafename" type="text" maxlength="12" oninput="onCafeNameInput()" placeholder="예: 한강윤슬로스터리"
+              class="flex-1 min-w-0 px-3.5 py-2 rounded-xl bg-[#120f0d] border border-stone-700 text-sm focus:outline-none focus:border-amber-500" />
+            <button type="button" onclick="verifyCafeNameServer()" id="btn-check-name"
+              class="px-3 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 active:scale-95 text-xs font-bold text-amber-300 shrink-0 transition">
+              상호 중복확인
+            </button>
+          </div>
+          <p id="cafename-status" class="text-[11px] mt-1 text-stone-400">상호명 입력 후 [상호 중복확인]을 눌러주세요.</p>
+        </div>
+
+        <button id="btn-go-step2" onclick="proceedToInitialMap()" disabled
+          class="w-full py-3.5 rounded-2xl font-black text-sm bg-amber-600 hover:bg-amber-500 disabled:bg-stone-800 disabled:text-stone-500 text-white transition shadow-lg">
+          다음: 수도권 상권 지도 펼치기 →
+        </button>
+      </div>
+
+      <!-- TAB B: 기존 매장 클라우드 불러오기 -->
+      <div id="onboard-panel-load" class="hidden space-y-3.5 mt-4">
+        <div class="bg-[#130f0c] border border-stone-800 rounded-2xl p-3.5 text-xs text-stone-300 leading-relaxed">
+          다른 기기(PC·스마트폰)에서 개업했던 <strong class="text-amber-300">사장님 고유 아이디</strong>와 <strong class="text-amber-300">4자리 PIN 번호</strong>를 입력하면 마지막 저장 시점 그대로 이어집니다.
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-stone-300 mb-1">사장님 고유 아이디</label>
+          <input id="login-userid" type="text" maxlength="16" autocapitalize="none" placeholder="예: chipoo2026"
+            class="w-full px-3.5 py-2.5 rounded-xl bg-[#120f0d] border border-stone-700 text-sm font-mono-code focus:outline-none focus:border-amber-500" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-stone-300 mb-1">4자리 PIN 번호</label>
+          <input id="login-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="숫자 4자리 입력"
+            class="w-full px-3.5 py-2.5 rounded-xl bg-[#120f0d] border border-stone-700 text-sm font-mono-code tracking-widest focus:outline-none focus:border-amber-500" />
+        </div>
+
+        <p id="login-status" class="text-[11px] text-stone-400 min-h-[16px]"></p>
+
+        <button type="button" id="btn-cloud-login" onclick="loginAndRestoreCloud()"
+          class="w-full py-3.5 rounded-2xl font-black text-sm bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white transition shadow-lg">
+          ☁️ 클라우드에서 내 카페 불러오기
+        </button>
+      </div>
+    </div>
+
+    <!-- STEP 2: 초기 상권 선택 지도 (모바일/PC 대응) -->
+    <div id="onboard-step2" class="hidden bg-[#1b1613] border border-amber-700/50 rounded-3xl max-w-5xl w-full p-4 sm:p-5 shadow-2xl flex-col max-h-[94dvh]">
+      <div class="flex flex-wrap justify-between items-center gap-2 pb-2.5 border-b border-stone-800">
+        <div>
+          <h2 class="text-base sm:text-lg font-black text-amber-200">🌃 첫 매장을 열 수도권 상권 선택</h2>
+          <p class="text-[11px] text-stone-400">자본금 <strong class="text-amber-400">800만 원</strong>으로 입점 가능한 곳에 불이 켜져 있습니다. (드래그·두 손가락 확대)</p>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <button onclick="adjustMapZoom('init', 0.3)" class="w-8 h-8 rounded-lg bg-amber-600/30 border border-amber-500/40 text-amber-200 font-black">+</button>
+          <button onclick="adjustMapZoom('init', -0.3)" class="w-8 h-8 rounded-lg bg-amber-600/30 border border-amber-500/40 text-amber-200 font-black">-</button>
+          <button onclick="backToStep1()" class="px-3 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-xs font-bold text-stone-300">← 뒤로</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 mt-3 overflow-y-auto">
+        <div class="lg:col-span-2 relative h-[260px] sm:h-[380px] rounded-2xl bg-[#070b12] border border-stone-800 overflow-hidden map-touch-zone">
+          <div id="init-metro-viewport" class="w-full h-full"></div>
+        </div>
+        <div id="init-district-card" class="bg-[#13100e] border border-stone-800 rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between min-h-[190px]">
+          <div class="my-auto text-center text-xs text-stone-400 space-y-1.5">
+            <div class="text-2xl">💡</div>
+            <p>지도에서 <strong class="text-amber-300">불이 켜진 상권 핀</strong>을 터치하면<br/>보증금과 월세, 상권 특성이 표시됩니다.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       2. 풀스크린 카페 실내 공간 (100dvh 모바일·PC 겸용)
+       ========================================================= -->
+  <div id="cafe-room-scene" class="relative w-full h-[100dvh] flex flex-col justify-between overflow-hidden bg-[#1c140f]">
+
+    <!-- 실내 벽면 & 펜던트 조명 -->
+    <div class="absolute inset-0 pointer-events-none">
+      <div class="w-full h-full bg-gradient-to-b from-[#2a1e17] via-[#211712] to-[#160f0c]"></div>
+      <div class="absolute top-0 inset-x-0 h-4 bg-[#140d09] border-b border-[#3b291e] shadow-lg"></div>
+      <div class="pendant-lamp absolute top-3.5 left-[18%] flex flex-col items-center">
+        <div class="w-0.5 h-7 sm:h-10 bg-stone-900"></div>
+        <div class="w-8 sm:w-10 h-4 sm:h-5 rounded-t-full bg-[#3a281d] border-b-2 border-amber-300 shadow-[0_14px_45px_rgba(251,191,36,0.45)]"></div>
+      </div>
+      <div class="pendant-lamp absolute top-3.5 left-[50%] -translate-x-1/2 flex flex-col items-center" style="animation-delay: -1.6s;">
+        <div class="w-0.5 h-6 sm:h-8 bg-stone-900"></div>
+        <div class="w-9 sm:w-11 h-4 sm:h-5 rounded-t-full bg-[#3a281d] border-b-2 border-amber-300 shadow-[0_14px_50px_rgba(251,191,36,0.5)]"></div>
+      </div>
+      <div class="pendant-lamp absolute top-3.5 right-[18%] flex flex-col items-center" style="animation-delay: -3.1s;">
+        <div class="w-0.5 h-7 sm:h-10 bg-stone-900"></div>
+        <div class="w-8 sm:w-10 h-4 sm:h-5 rounded-t-full bg-[#3a281d] border-b-2 border-amber-300 shadow-[0_14px_45px_rgba(251,191,36,0.45)]"></div>
+      </div>
+    </div>
+
+    <!-- 상단 반응형 2단 플로팅 HUD 헤더 (모바일 360px~PC 4K 완벽 대응) -->
+    <header id="hud-header" class="relative z-20 px-2.5 sm:px-4 safe-top pb-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 transition-opacity duration-300">
+      <!-- 1행: 카페 상호명 · 입점 상권 · 감상 모드 버튼 -->
+      <div class="flex items-center justify-between gap-2 bg-[#15100d]/85 backdrop-blur-md border border-amber-900/40 px-3 py-1.5 sm:py-2 rounded-2xl shadow-lg">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="text-lg sm:text-xl shrink-0">☕</span>
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <h1 id="hud-cafename" class="font-black text-xs sm:text-sm text-amber-200 truncate max-w-[130px] sm:max-w-none">수도권 카페 타이쿤</h1>
+              <span id="hud-district" class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold shrink-0">-</span>
+              <span id="hud-cloud-badge" class="px-1.5 py-0.5 rounded-full bg-emerald-950/90 border border-emerald-700/50 text-emerald-300 text-[9px] font-bold shrink-0">☁️ 동기화됨</span>
+              <span id="hud-hq-badge" class="hidden px-1.5 py-0.5 rounded-full bg-purple-600/40 text-purple-200 text-[9px] font-bold shrink-0">🏢 본사</span>
+              <span id="hud-star-badge" class="hidden px-1.5 py-0.5 rounded-full bg-amber-500/25 text-amber-200 text-[9px] font-bold shrink-0">⭐</span>
+            </div>
+            <p class="text-[10px] sm:text-[11px] text-stone-300 truncate">
+              <span id="hud-date">1년 1개월차</span> · 정산 <span id="hud-month-countdown" class="font-mono-code text-emerald-400">60:00</span>
+            </p>
+          </div>
+        </div>
+
+        <!-- 모바일 전용 우측 감상모드 버튼 -->
+        <button onclick="toggleZenMode()"
+          class="sm:hidden px-2.5 py-1.5 rounded-xl bg-stone-800/90 active:scale-95 border border-amber-800/50 text-[11px] font-bold text-amber-100 shrink-0">
+          👁️ 감상
+        </button>
+      </div>
+
+      <!-- 2행(모바일) / 우측(PC): 보유 현금 · 초당 매출 · PC 감상모드 -->
+      <div class="flex items-center justify-between sm:justify-end gap-1.5 sm:gap-2">
+        <div class="flex-1 sm:flex-initial bg-[#15100d]/85 backdrop-blur-md border border-amber-900/40 px-3 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl flex sm:block items-center justify-between text-right shadow-lg">
+          <div class="text-[10px] text-stone-400">보유 현금</div>
+          <div id="hud-cash" class="font-mono-code text-xs sm:text-sm font-extrabold text-amber-400">8,000,000원</div>
+        </div>
+        <div class="flex-1 sm:flex-initial bg-[#15100d]/85 backdrop-blur-md border border-amber-900/40 px-3 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl flex sm:block items-center justify-between text-right shadow-lg">
+          <div class="text-[10px] text-stone-400">초당 매출</div>
+          <div id="hud-cps" class="font-mono-code text-xs sm:text-sm font-bold text-emerald-400">0원/초</div>
+        </div>
+
+        <button onclick="toggleZenMode()"
+          class="hidden sm:flex px-3.5 py-2.5 rounded-2xl bg-[#15100d]/85 hover:bg-stone-800 backdrop-blur-md border border-amber-800/50 text-xs font-bold text-amber-100 items-center gap-1.5 shadow-lg transition">
+          <span>👁️</span><span>감상 모드</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 감상 모드 복귀 플로팅 버튼 -->
+    <button id="btn-exit-zen" onclick="toggleZenMode()"
+      class="hidden fixed top-4 right-4 z-40 px-4 py-2.5 rounded-full bg-black/60 hover:bg-black/85 backdrop-blur-md border border-white/20 text-xs text-stone-100 font-bold shadow-xl transition">
+      👁️ 경영 화면 돌아오기
+    </button>
+
+    <!-- =========================================================
+         중단 메인 공간: 파노라마 통유리 창문 + 홀 좌석 + (PC) 원목 선반
+         ========================================================= -->
+    <div class="relative z-10 flex-1 max-w-7xl w-full mx-auto px-2.5 sm:px-4 py-1 sm:py-2 grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 items-stretch min-h-0">
+
+      <!-- 파노라마 카페 통유리 창문 -->
+      <div class="lg:col-span-8 relative rounded-2xl sm:rounded-3xl border-[6px] sm:border-[10px] border-[#332319] shadow-[inset_0_0_35px_rgba(0,0,0,0.6),0_12px_30px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col justify-between min-h-0">
+        <!-- 하늘 배경 -->
+        <div id="cafe-window-sky" class="absolute inset-0 sky-morning transition-colors duration-1000"></div>
+
+        <!-- 별빛 & 해/달 -->
+        <div id="window-stars" class="hidden absolute inset-0 pointer-events-none opacity-80"
+          style="background-image: radial-gradient(white 1px, transparent 1px), radial-gradient(#fde68a 1px, transparent 1px); background-size: 55px 55px, 85px 85px; background-position: 0 0, 25px 30px;"></div>
+        <div id="window-sun-moon" class="absolute top-6 right-10 sm:right-16 w-11 h-11 sm:w-14 sm:h-14 rounded-full bg-amber-200 shadow-[0_0_45px_rgba(253,224,71,0.95)] transition-all duration-1000"></div>
+
+        <!-- 구름 레이어 -->
+        <div id="window-clouds" class="hidden absolute top-9 inset-x-0 flex justify-around opacity-75 pointer-events-none">
+          <div class="w-28 sm:w-36 h-9 rounded-full bg-slate-200/60 blur-md"></div>
+          <div class="w-36 sm:w-48 h-11 rounded-full bg-slate-300/50 blur-md mt-3"></div>
+        </div>
+
+        <!-- 창밖 수도권 스카이라인 실루엣 -->
+        <svg viewBox="0 0 900 220" preserveAspectRatio="none" class="absolute bottom-0 inset-x-0 w-full h-3/5 pointer-events-none">
+          <path d="M0,220 L0,135 Q120,75 260,130 Q410,60 580,125 Q740,80 900,130 L900,220 Z" fill="#0f172a" opacity="0.45" />
+          <path d="M0,220 L0,145 L42,145 L42,105 L88,105 L88,155 L135,155 L135,88 L185,88 L185,148 L240,148 L240,115 L295,115 L295,160 L355,160 L355,68 L405,68 L405,135 L460,135 L460,98 L515,98 L515,150 L580,150 L580,45 L625,45 L625,140 L690,140 L690,105 L750,105 L750,155 L815,155 L815,92 L865,92 L865,145 L900,145 L900,220 Z" fill="#090d16" opacity="0.85" />
+          <g id="night-building-lights" class="hidden" fill="#fde047" opacity="0.75">
+            <rect x="148" y="102" width="6" height="6" /><rect x="162" y="102" width="6" height="6" />
+            <rect x="370" y="84" width="7" height="7" /><rect x="385" y="98" width="7" height="7" />
+            <rect x="595" y="65" width="7" height="7" /><rect x="608" y="82" width="7" height="7" />
+            <rect x="830" y="108" width="6" height="6" />
+          </g>
+        </svg>
+
+        <!-- 날씨 파티클 -->
+        <div id="window-weather-particles" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
+
+        <!-- 통유리 창살 프레임 -->
+        <div class="absolute inset-0 grid grid-cols-3 pointer-events-none">
+          <div class="border-r-[4px] sm:border-r-[6px] border-[#332319]/90"></div>
+          <div class="border-r-[4px] sm:border-r-[6px] border-[#332319]/90"></div>
+          <div></div>
+        </div>
+
+        <!-- 창문 상단 시간 · 날씨 · SNS 유행 배지 -->
+        <div class="relative z-10 p-2 sm:p-3 flex flex-wrap justify-between items-start gap-1.5 pointer-events-none">
+          <div class="px-2.5 py-1 rounded-xl sm:rounded-2xl bg-black/55 backdrop-blur-md border border-white/15 text-[11px] sm:text-xs flex items-center gap-1.5 shadow-lg">
+            <span id="window-clock-badge" class="font-mono-code font-bold text-amber-200">☀️ 09:00</span>
+            <span class="text-white/30">|</span>
+            <span id="window-weather-badge" class="text-sky-200 font-semibold">맑음</span>
+          </div>
+          <div class="px-2.5 py-1 rounded-xl sm:rounded-2xl bg-black/55 backdrop-blur-md border border-white/15 text-[10px] sm:text-[11px] text-amber-100 shadow-lg">
+            🔥 유행: <strong id="window-trend-badge" class="text-amber-300">피스타치오</strong>
+          </div>
+        </div>
+
+        <!-- 창가 좌석 & 찐단골 방문 배너 -->
+        <div class="relative z-10 mt-auto bg-gradient-to-t from-[#18110d]/95 via-[#18110d]/80 to-transparent p-2 sm:p-3 pt-4">
+          <div class="flex flex-wrap items-center justify-between gap-1.5 mb-1.5">
+            <div class="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-stone-300">
+              <span>🌿 홀 좌석</span>
+              <span>·</span>
+              <span id="floor-size-text" class="text-amber-200 font-bold">8평 (12명)</span>
+              <span>·</span>
+              <span>찐단골 <strong id="floor-reg-count" class="text-pink-300">0/5명</strong></span>
+            </div>
+
+            <!-- 찐단골 후보 방문 알림 버튼 -->
+            <div id="regular-visitor-banner" class="hidden bg-gradient-to-r from-pink-900/95 to-amber-900/95 border border-pink-400/75 px-2.5 py-1 rounded-full flex items-center gap-1.5 shadow-xl">
+              <span id="visitor-banner-text" class="text-[10px] sm:text-[11px] font-bold text-pink-100 truncate max-w-[175px] sm:max-w-none">🔔 단골 후보 방문!</span>
+              <button onclick="openRegularCandidateModal()" class="px-2.5 py-0.5 rounded-full bg-pink-500 active:scale-95 text-white text-[10px] font-black shrink-0">
+                인사하기
+              </button>
+            </div>
+          </div>
+
+          <!-- 손님 테이블 4석 (모바일 2x2 / PC 4x1) -->
+          <div id="cafe-tables-area" class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2.5"></div>
+        </div>
+      </div>
+
+      <!-- 우측 벽면 (PC 전용 원목 책장 & 초크 메뉴판) -->
+      <div class="hidden lg:flex lg:col-span-4 flex-col justify-between rounded-3xl border-4 border-[#332319] bg-[#1b130f]/95 p-4 shadow-2xl">
+        <div class="rounded-2xl border-4 border-[#4b3527] bg-[#16221c] p-3.5 shadow-inner">
+          <div class="flex justify-between items-center border-b border-emerald-800/60 pb-1.5 mb-2">
+            <span class="text-xs font-black text-amber-200 tracking-wider">📋 TODAY'S MENU</span>
+            <span class="text-[10px] text-emerald-300">SPECIALTY CAFE</span>
+          </div>
+          <div class="space-y-1.5 text-xs">
+            <div class="flex justify-between text-stone-200">
+              <span>• 하우스 아메리카노</span>
+              <span class="font-mono-code text-amber-300">2,500원</span>
+            </div>
+            <div class="flex justify-between text-amber-200 font-bold">
+              <span>• 대표 시그니처</span>
+              <span id="board-active-menu" class="truncate max-w-[135px]">기본 아메리카노</span>
+            </div>
+            <div class="flex justify-between text-stone-400 text-[11px]">
+              <span>• 현재 추출 단가</span>
+              <span id="board-brew-power" class="font-mono-code text-emerald-400">+2,500원</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="my-auto py-2 space-y-3">
+          <div class="border-b-4 border-[#463124] pb-1.5 flex items-end justify-around text-2xl">
+            <span>🫙</span><span>🫖</span><span>📚</span><span>🪴</span>
+          </div>
+          <div class="border-b-4 border-[#463124] pb-1.5 flex items-end justify-around text-2xl">
+            <span>💿</span><span>🍵</span><span>🕯️</span><span>📓</span>
+          </div>
+        </div>
+
+        <div class="rounded-2xl bg-[#130e0b] border border-stone-800 p-3 text-[11px]">
+          <div class="text-amber-400 font-bold mb-1">📰 실시간 수도권 상권 소식</div>
+          <p id="hud-news-ticker" class="text-stone-300 leading-relaxed line-clamp-2">
+            잔잔한 햇살과 함께 수도권 카페 상권이 문을 열었습니다.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================================================
+         하단 전경: 원목 카운터 책상 (모바일 2단 촉각 그리드 / PC 7종 일렬 배치)
+         ========================================================= -->
+    <footer class="relative z-20 border-t-[4px] sm:border-t-[6px] border-[#523b2c] bg-gradient-to-b from-[#33241a] via-[#241912] to-[#160f0b] px-2.5 sm:px-4 pt-2 sm:pt-3 safe-bottom shadow-[0_-12px_30px_rgba(0,0,0,0.8)]">
+      <div class="max-w-7xl mx-auto grid grid-cols-4 md:grid-cols-7 gap-1.5 sm:gap-2.5">
+
+        <!-- 1. 에스프레소 머신 (모바일 첫 줄 좌측 2칸 강조 / PC 1칸) -->
+        <div onclick="brewEspressoFromMachine(event)"
+          class="desk-item col-span-2 md:col-span-1 relative bg-gradient-to-br from-amber-950/85 to-[#1a130f] border border-amber-500/60 rounded-2xl p-2 sm:p-2.5 flex flex-row md:flex-col items-center justify-center gap-2 md:gap-0.5 text-left md:text-center shadow-lg">
+          <div class="relative shrink-0">
+            <span class="steam-particle absolute -top-3 left-1 text-[10px]">♨️</span>
+            <span class="text-2xl sm:text-3xl block">☕</span>
+          </div>
+          <div class="min-w-0">
+            <div class="text-[11px] sm:text-xs font-black text-amber-200 leading-tight">커피 추출</div>
+            <div id="obj-brew-price" class="font-mono-code text-[11px] text-emerald-400 font-extrabold">+2,500원</div>
+            <div id="obj-autobrew-info" class="text-[9px] text-stone-400">자동 2.5초</div>
+          </div>
+        </div>
+
+        <!-- 2. 포스기 (POS) -->
+        <div onclick="openModal('modal-pos')"
+          class="desk-item bg-[#1a130f]/95 border border-stone-700/80 hover:border-amber-500/50 rounded-2xl p-2 sm:p-2.5 flex flex-col items-center justify-center text-center shadow-lg">
+          <span class="text-xl sm:text-3xl">🖥️</span>
+          <div class="text-[11px] sm:text-xs font-black text-stone-100 mt-0.5">포스기</div>
+          <div id="obj-pos-sub" class="text-[9px] sm:text-[10px] text-amber-300/90 truncate max-w-full">직원·메뉴·단골</div>
+        </div>
+
+        <!-- 3. 스마트폰 (문자 · 카페그램 SNS · 주식 · 코인) -->
+        <div id="desk-phone-obj" onclick="openSmartphone()"
+          class="desk-item relative bg-[#1a130f]/95 border border-stone-700/80 hover:border-amber-500/50 rounded-2xl p-2 sm:p-2.5 flex flex-col items-center justify-center text-center shadow-lg">
+          <span id="phone-badge-pill" class="hidden absolute top-1 right-1 px-1.5 py-0.2 rounded-full bg-rose-500 text-white font-mono-code text-[9px] font-black shadow">1</span>
+          <span class="text-xl sm:text-3xl">📱</span>
+          <div class="text-[11px] sm:text-xs font-black text-stone-100 mt-0.5">스마트폰</div>
+          <div class="text-[9px] sm:text-[10px] text-purple-300 truncate max-w-full">문자·SNS·투자</div>
+        </div>
+
+        <!-- 4. 수도권 광역 지도 (모바일 2행 시작) -->
+        <div onclick="openModal('modal-map')"
+          class="desk-item bg-[#1a130f]/95 border border-stone-700/80 hover:border-amber-500/50 rounded-2xl p-2 sm:p-2.5 flex flex-col items-center justify-center text-center shadow-lg">
+          <span class="text-xl sm:text-3xl">🗺️</span>
+          <div class="text-[11px] sm:text-xs font-black text-stone-100 mt-0.5">수도권 지도</div>
+          <div class="text-[9px] sm:text-[10px] text-sky-300 truncate max-w-full">서울·경기·인천</div>
+        </div>
+
+        <!-- 5. 빈티지 라디오 (ASMR 믹서) -->
+        <div onclick="openModal('modal-radio')"
+          class="desk-item bg-[#1a130f]/95 border border-stone-700/80 hover:border-amber-500/50 rounded-2xl p-2 sm:p-2.5 flex flex-col items-center justify-center text-center shadow-lg">
+          <span class="text-xl sm:text-3xl">📻</span>
+          <div class="text-[11px] sm:text-xs font-black text-stone-100 mt-0.5">라디오</div>
+          <div id="obj-radio-status" class="text-[9px] sm:text-[10px] text-emerald-400 truncate max-w-full">ASMR 켜기</div>
+        </div>
+
+        <!-- 6. 경영 장부 -->
+        <div onclick="openModal('modal-ledger')"
+          class="desk-item bg-[#1a130f]/95 border border-stone-700/80 hover:border-amber-500/50 rounded-2xl p-2 sm:p-2.5 flex flex-col items-center justify-center text-center shadow-lg">
+          <span class="text-xl sm:text-3xl">📒</span>
+          <div class="text-[11px] sm:text-xs font-black text-stone-100 mt-0.5">경영 장부</div>
+          <div id="obj-networth-sub" class="font-mono-code text-[9px] sm:text-[10px] text-amber-300 truncate max-w-full">자산 800만</div>
+        </div>
+
+        <!-- 7. 트로피 (실시간 랭킹) -->
+        <div onclick="openModal('modal-rank')"
+          class="desk-item bg-[#1a130f]/95 border border-stone-700/80 hover:border-amber-500/50 rounded-2xl p-2 sm:p-2.5 flex flex-col items-center justify-center text-center shadow-lg">
+          <span class="text-xl sm:text-3xl">🏆</span>
+          <div class="text-[11px] sm:text-xs font-black text-stone-100 mt-0.5">랭킹</div>
+          <div class="text-[9px] sm:text-[10px] text-amber-300 truncate max-w-full">수도권 순위표</div>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- =========================================================
+       모달 A: 리얼 스마트폰 디바이스 (홈 · 메시지 · 카페그램 SNS · 주식 · 코인)
+       ========================================================= -->
+  <div id="modal-phone" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
+    <div class="relative w-[92vw] max-w-[390px] h-[86dvh] max-h-[680px] rounded-[2.6rem] sm:rounded-[3rem] border-[5px] sm:border-[6px] border-stone-700 bg-[#0d0b0a] shadow-[0_25px_70px_rgba(0,0,0,0.95)] flex flex-col overflow-hidden">
+      <!-- 상단 상태바 -->
+      <div class="px-5 pt-2.5 pb-2 flex items-center justify-between text-[11px] font-mono-code text-stone-300 bg-[#120f0d] shrink-0">
+        <span id="phone-status-clock" class="font-bold">09:00</span>
+        <div class="w-20 sm:w-24 h-4 sm:h-5 rounded-full bg-black border border-stone-800 flex items-center justify-end px-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-500/80"></span>
+        </div>
+        <span>5G 🔋100%</span>
+      </div>
+
+      <!-- 스마트폰 화면 본문 -->
+      <div class="flex-1 flex flex-col overflow-hidden bg-gradient-to-b from-[#171311] to-[#100d0b]">
+        <!-- 1) 홈 화면 -->
+        <div id="phone-view-home" class="flex-1 p-4 sm:p-5 flex flex-col justify-between overflow-y-auto">
+          <div>
+            <div class="rounded-3xl bg-gradient-to-br from-amber-900/45 to-stone-900/90 border border-amber-600/30 p-3.5 sm:p-4 mb-4 sm:mb-5 shadow-lg">
+              <div class="flex justify-between items-center text-xs text-amber-200 font-bold">
+                <span id="phone-widget-district">📍 동인천 개항로</span>
+                <span id="phone-widget-weather">☀️ 맑음</span>
+              </div>
+              <div class="mt-1.5 font-mono-code text-base sm:text-lg font-black text-white" id="phone-widget-cash">8,000,000원</div>
+              <div class="text-[11px] text-stone-300 mt-0.5 truncate" id="phone-widget-trend">🔥 SNS 급상승: 시칠리아 피스타치오</div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 sm:gap-3.5">
+              <button onclick="openPhoneApp('sms')" class="relative bg-[#1f1916] hover:bg-[#29211d] active:scale-95 border border-stone-800 rounded-3xl p-3.5 sm:p-4 flex flex-col items-center gap-1.5 transition">
+                <span id="app-badge-sms" class="hidden absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-rose-500 text-white font-mono-code text-[10px] font-black">1</span>
+                <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-2xl sm:text-3xl">💬</div>
+                <span class="text-xs font-bold text-stone-100">메시지</span>
+                <span class="text-[10px] text-stone-400">계약·정산·단골톡</span>
+              </button>
+
+              <button onclick="openPhoneApp('sns')" class="relative bg-[#1f1916] hover:bg-[#29211d] active:scale-95 border border-stone-800 rounded-3xl p-3.5 sm:p-4 flex flex-col items-center gap-1.5 transition">
+                <span id="app-badge-sns" class="hidden absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-pink-500 text-white font-mono-code text-[10px] font-black">N</span>
+                <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-pink-500/20 border border-pink-500/40 flex items-center justify-center text-2xl sm:text-3xl">📸</div>
+                <span class="text-xs font-bold text-stone-100">카페그램</span>
+                <span class="text-[10px] text-stone-400">실시간 유행·후기</span>
+              </button>
+
+              <button onclick="openPhoneApp('stock')" class="bg-[#1f1916] hover:bg-[#29211d] active:scale-95 border border-stone-800 rounded-3xl p-3.5 sm:p-4 flex flex-col items-center gap-1.5 transition">
+                <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-2xl sm:text-3xl">📈</div>
+                <span class="text-xs font-bold text-stone-100">한국투자증권</span>
+                <span class="text-[10px] text-stone-400">안정형·월 2.5% 배당</span>
+              </button>
+
+              <button onclick="openPhoneApp('coin')" class="bg-[#1f1916] hover:bg-[#29211d] active:scale-95 border border-stone-800 rounded-3xl p-3.5 sm:p-4 flex flex-col items-center gap-1.5 transition">
+                <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-2xl sm:text-3xl">🪙</div>
+                <span class="text-xs font-bold text-stone-100">업비트코인</span>
+                <span class="text-[10px] text-stone-400">0.8초 변동·예치</span>
+              </button>
+            </div>
+          </div>
+
+          <button onclick="closeModal('modal-phone')" class="mt-3 w-full py-3 rounded-2xl bg-stone-800/95 hover:bg-stone-700 active:scale-95 text-xs font-bold text-stone-200">
+            카운터에 스마트폰 내려놓기
+          </button>
+        </div>
+
+        <!-- 2) 앱 내부 화면 -->
+        <div id="phone-view-app" class="hidden flex-1 flex flex-col overflow-hidden">
+          <div class="px-4 py-2.5 border-b border-stone-800 flex items-center justify-between bg-[#14100e] shrink-0">
+            <button onclick="backToPhoneHome()" class="text-xs font-bold text-amber-400 py-1 px-1.5">‹ 홈</button>
+            <span id="phone-app-title" class="text-xs font-black text-stone-100">앱</span>
+            <button onclick="closeModal('modal-phone')" class="text-xs text-stone-400 py-1 px-1.5">✕</button>
+          </div>
+          <div id="phone-app-scroll" class="flex-1 p-3 overflow-y-auto space-y-2.5"></div>
+        </div>
+      </div>
+
+      <!-- 하단 홈 인디케이터 -->
+      <div class="py-2 bg-[#0d0b0a] flex justify-center shrink-0">
+        <button onclick="backToPhoneHome()" class="w-28 h-1.5 rounded-full bg-stone-600 hover:bg-stone-400 transition" title="홈으로"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       모달 B: 정밀 터치·핀치줌 수도권 광역 지도 (35개 상권)
+       ========================================================= -->
+  <div id="modal-map" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
+    <div class="bg-[#1b1613] border border-stone-700 rounded-3xl max-w-6xl w-full p-3.5 sm:p-5 max-h-[94dvh] flex flex-col shadow-2xl">
+      <div class="flex flex-wrap justify-between items-center gap-2 pb-2.5 border-b border-stone-800">
+        <div>
+          <h2 class="text-sm sm:text-lg font-black text-amber-200">🗺️ 수도권 광역 상권 지도 (35개 거점)</h2>
+          <p class="text-[10px] sm:text-xs text-stone-400">한 손가락 드래그로 이동, 두 손가락 핀치(또는 +/- 버튼)로 확대·축소하세요.</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-1 sm:gap-1.5">
+          <button onclick="focusMetroRegion('all')" class="px-2 py-1 rounded-lg bg-stone-800 hover:bg-amber-700/50 text-[11px] font-bold">전체</button>
+          <button onclick="focusMetroRegion('incheon')" class="px-2 py-1 rounded-lg bg-stone-800 hover:bg-amber-700/50 text-[11px] font-bold">인천</button>
+          <button onclick="focusMetroRegion('seoul')" class="px-2 py-1 rounded-lg bg-stone-800 hover:bg-amber-700/50 text-[11px] font-bold">서울</button>
+          <button onclick="focusMetroRegion('south')" class="px-2 py-1 rounded-lg bg-stone-800 hover:bg-amber-700/50 text-[11px] font-bold">경기남부</button>
+          <button onclick="focusMetroRegion('north')" class="px-2 py-1 rounded-lg bg-stone-800 hover:bg-amber-700/50 text-[11px] font-bold">경기북·동</button>
+          <button onclick="adjustMapZoom('main', 0.3)" class="w-7 h-7 rounded-lg bg-amber-600/30 border border-amber-500/40 text-amber-200 text-xs font-black">+</button>
+          <button onclick="adjustMapZoom('main', -0.3)" class="w-7 h-7 rounded-lg bg-amber-600/30 border border-amber-500/40 text-amber-200 text-xs font-black">-</button>
+          <button onclick="closeModal('modal-map')" class="px-2.5 py-1 rounded-lg bg-rose-900/75 hover:bg-rose-800 text-xs font-bold ml-0.5">닫기 ✕</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 mt-3 overflow-y-auto">
+        <div class="lg:col-span-2 relative h-[265px] sm:h-[430px] rounded-2xl bg-[#070b12] border border-stone-800 overflow-hidden map-touch-zone">
+          <div id="main-metro-viewport" class="w-full h-full"></div>
+        </div>
+        <div id="main-district-detail" class="bg-[#13100e] border border-stone-800 rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       모달 C: 포스기 POS (직원/설비 · 메뉴/원재료 · 찐단골 수첩)
+       ========================================================= -->
+  <div id="modal-pos" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-2.5 sm:p-4">
+    <div class="bg-[#1c1714] border border-stone-700 rounded-3xl max-w-3xl w-full p-4 sm:p-5 max-h-[92dvh] flex flex-col">
+      <div class="flex justify-between items-center pb-2.5 border-b border-stone-800">
+        <div class="flex items-center gap-2">
+          <span class="text-lg sm:text-xl">🖥️</span>
+          <h2 class="text-sm sm:text-lg font-black text-amber-200">카운터 포스기 (매장 운영)</h2>
+        </div>
+        <button onclick="closeModal('modal-pos')" class="px-3 py-1.5 rounded-xl bg-stone-800 text-xs font-bold">닫기 ✕</button>
+      </div>
+
+      <div class="flex gap-1.5 mt-3 bg-[#120f0d] p-1 rounded-xl border border-stone-800 text-xs font-bold shrink-0">
+        <button onclick="switchPosTab('staff')" id="pos-tab-staff" class="flex-1 py-2 rounded-lg bg-amber-600 text-white">👩‍🍳 직원·설비</button>
+        <button onclick="switchPosTab('menu')" id="pos-tab-menu" class="flex-1 py-2 rounded-lg text-stone-400">🧾 메뉴·재료</button>
+        <button onclick="switchPosTab('regulars')" id="pos-tab-regulars" class="flex-1 py-2 rounded-lg text-stone-400">💕 찐단골 수첩</button>
+      </div>
+
+      <div id="pos-body-staff" class="mt-3 space-y-2.5 overflow-y-auto pr-1"></div>
+      <div id="pos-body-menu" class="hidden mt-3 space-y-3 overflow-y-auto pr-1"></div>
+      <div id="pos-body-regulars" class="hidden mt-3 space-y-3 overflow-y-auto pr-1"></div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       모달 D: 빈티지 라디오 (카페 힐링 ASMR & 로파이 믹서)
+       ========================================================= -->
+  <div id="modal-radio" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="bg-[#1e1713] border border-amber-700/50 rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-stone-800 pb-3">
+        <div>
+          <h2 class="text-base sm:text-lg font-black text-amber-200">📻 카페 힐링 ASMR 믹서</h2>
+          <p class="text-[11px] text-stone-400">작업·공부 중 틀어두기 좋은 백색소음을 조절하세요.</p>
+        </div>
+        <button onclick="closeModal('modal-radio')" class="px-3 py-1.5 rounded-xl bg-stone-800 text-xs font-bold">닫기 ✕</button>
+      </div>
+
+      <button id="btn-toggle-audio" onclick="toggleMasterAudio()"
+        class="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black text-sm transition shadow-lg">
+        ▶️ 카페 ASMR 사운드 켜기
+      </button>
+
+      <div class="space-y-3 bg-[#130f0c] p-4 rounded-2xl border border-stone-800 text-xs">
+        <div>
+          <div class="flex justify-between mb-1"><span>🎹 잔잔한 로파이 피아노</span><span id="vol-lofi-val">55%</span></div>
+          <input type="range" min="0" max="100" value="55" oninput="setAudioVolume('lofi', this.value)" class="w-full h-2 accent-amber-500" />
+        </div>
+        <div>
+          <div class="flex justify-between mb-1"><span>🌧️ 창밖 빗소리</span><span id="vol-rain-val">45%</span></div>
+          <input type="range" min="0" max="100" value="45" oninput="setAudioVolume('rain', this.value)" class="w-full h-2 accent-sky-400" />
+        </div>
+        <div>
+          <div class="flex justify-between mb-1"><span>☕ 바리스타 그라인더 & 스팀</span><span id="vol-cafe-val">60%</span></div>
+          <input type="range" min="0" max="100" value="60" oninput="setAudioVolume('cafe', this.value)" class="w-full h-2 accent-emerald-400" />
+        </div>
+        <div>
+          <div class="flex justify-between mb-1"><span>🔥 원두 로스터기 장작 소리</span><span id="vol-fire-val">35%</span></div>
+          <input type="range" min="0" max="100" value="35" oninput="setAudioVolume('fire', this.value)" class="w-full h-2 accent-orange-400" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       모달 E: 경영 장부 (월간 정산서 & 데이터 관리)
+       ========================================================= -->
+  <div id="modal-ledger" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="bg-[#1c1714] border border-stone-700 rounded-3xl max-w-lg w-full p-5 max-h-[88dvh] flex flex-col">
+      <div class="flex justify-between items-center pb-3 border-b border-stone-800">
+        <h2 class="text-base sm:text-lg font-black text-amber-200">📒 월간 경영 정산 장부</h2>
+        <button onclick="closeModal('modal-ledger')" class="px-3 py-1.5 rounded-xl bg-stone-800 text-xs font-bold">닫기 ✕</button>
+      </div>
+      <div id="ledger-body" class="mt-3 space-y-3 overflow-y-auto text-xs"></div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       모달 F: 트로피 (Firebase 실시간 수도권 총자산 랭킹)
+       ========================================================= -->
+  <div id="modal-rank" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="bg-[#1c1714] border border-stone-700 rounded-3xl max-w-lg w-full p-5 max-h-[88dvh] flex flex-col">
+      <div class="flex justify-between items-center pb-3 border-b border-stone-800">
+        <h2 class="text-base sm:text-lg font-black text-amber-300">🏆 수도권 카페 실시간 총자산 랭킹</h2>
+        <button onclick="closeModal('modal-rank')" class="px-3 py-1.5 rounded-xl bg-stone-800 text-xs font-bold">닫기 ✕</button>
+      </div>
+      <div id="rank-body" class="mt-3 space-y-2 overflow-y-auto text-xs"></div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       모달 G: 찐단골 맞이하기 선택 & 프랜차이즈 계약 3종 선택
+       ========================================================= -->
+  <div id="modal-candidate" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3">
+    <div id="candidate-card-body" class="bg-[#1e1815] border border-pink-500/60 rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl"></div>
+  </div>
+
+  <div id="modal-franchise" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 overflow-y-auto">
+    <div class="bg-[#1e1815] border border-purple-500/60 rounded-3xl max-w-3xl w-full p-5 sm:p-6 shadow-2xl my-auto">
+      <h2 class="text-lg sm:text-xl font-black text-purple-200 mb-1">🤝 대기업 F&B 프랜차이즈 제휴 방식 선택</h2>
+      <p class="text-xs text-stone-400 mb-4">브랜드 가치를 인정받았습니다! 앞으로 어떤 방식으로 확장할지 선택하세요.</p>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+        <div class="bg-[#13100e] border border-purple-500/50 rounded-2xl p-4 flex flex-col justify-between">
+          <div>
+            <div class="font-black text-purple-300 text-sm mb-1">① 가맹 본사(HQ) 전환</div>
+            <p class="text-stone-400 leading-relaxed">수도권 각지에서 날아오는 신규 가맹 신청을 승인해 자본금 없이 지점을 늘리고 <strong>가맹비 + 월 로열티 + 물류 수익</strong>을 얻습니다.</p>
+          </div>
+          <button onclick="selectFranchiseRoute('hq')" class="mt-4 w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 font-bold text-white">본사 CEO로 전환</button>
+        </div>
+
+        <div class="bg-[#13100e] border border-amber-500/50 rounded-2xl p-4 flex flex-col justify-between">
+          <div>
+            <div class="font-black text-amber-300 text-sm mb-1">② M&A 완전 매각 (2회차)</div>
+            <p class="text-stone-400 leading-relaxed">매장과 브랜드를 거액에 매각하고 <strong>⭐ 영구 매출 +25%</strong>와 개인 자산(현금·주식·코인·단골)을 유지한 채 재창업합니다.</p>
+          </div>
+          <button onclick="selectFranchiseRoute('exit')" class="mt-4 w-full py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 font-bold text-white">매각 후 2회차 창업</button>
+        </div>
+
+        <div class="bg-[#13100e] border border-emerald-500/50 rounded-2xl p-4 flex flex-col justify-between">
+          <div>
+            <div class="font-black text-emerald-300 text-sm mb-1">③ 레시피 라이선스 제휴</div>
+            <p class="text-stone-400 leading-relaxed">독립 매장을 그대로 유지하면서, 개발한 시그니처 메뉴 수에 비례해 <strong>메뉴당 월 180만 원</strong>의 로열티만 받습니다.</p>
+          </div>
+          <button onclick="selectFranchiseRoute('license')" class="mt-4 w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold text-white">독립 매장 + 로열티</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 토스트 알림 -->
+  <div id="toast-box" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col items-center gap-2 w-[90vw] max-w-sm"></div>
+
+  <!-- =========================================================
+       SCRIPT 1: Firebase Firestore v10 모듈 연동 (ID 중복방지 + 클라우드 저장/복원 + 실시간 랭킹)
+       ========================================================= -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, getDocs
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCY0HD9hWRruSesXMFS7KdKsj0nse6DjJ0",
+      authDomain: "cafegame-303f0.firebaseapp.com",
+      projectId: "cafegame-303f0",
+      storageBucket: "cafegame-303f0.firebasestorage.app",
+      messagingSenderId: "427815852533",
+      appId: "1:427815852533:web:4e80b0275b950e314a28bc"
+    };
+
+    let db = null;
+    try {
+      const app = initializeApp(firebaseConfig);
+      db = getFirestore(app);
+      const badge = document.getElementById('fb-conn-badge');
+      if (badge) {
+        badge.textContent = '🟢 클라우드 서버 연결됨';
+        badge.className = 'text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-700/50';
+      }
+    } catch (e) {
+      console.warn('Firebase fallback:', e);
+    }
+
+    window.FB_API = {
+      async checkUserIdTaken(rawId) {
+        const cleanId = rawId.trim().toLowerCase();
+        if (!cleanId) return true;
+        if (!db) return false;
+        try {
+          const snap = await getDoc(doc(db, 'cafeUsers', cleanId));
+          return snap.exists();
+        } catch (err) {
+          return false;
+        }
+      },
+      async checkCafeNameTaken(rawName) {
+        const key = rawName.replace(/\s+/g, '').toLowerCase();
+        if (!key) return true;
+        if (RIVAL_CAFES.some(r => r.name.replace(/\s+/g, '').toLowerCase() === key)) return true;
+        if (!db) return false;
+        try {
+          const snap = await getDoc(doc(db, 'cafeNames', key));
+          return snap.exists();
+        } catch (err) {
+          return false;
+        }
+      },
+      async registerNewAccount(stateObj) {
+        const cleanId = stateObj.playerId.trim().toLowerCase();
+        const cleanName = stateObj.cafeName.replace(/\s+/g, '').toLowerCase();
+        if (!db || !cleanId) return false;
+        try {
+          // 최종 중복 재검증 (동시 가입 경쟁 방지)
+          const [uSnap, nSnap] = await Promise.all([
+            getDoc(doc(db, 'cafeUsers', cleanId)),
+            getDoc(doc(db, 'cafeNames', cleanName))
+          ]);
+          if (uSnap.exists()) return { ok: false, reason: '이미 다른 사용자가 등록한 아이디입니다.' };
+          if (nSnap.exists()) return { ok: false, reason: '이미 다른 사장이 사용 중인 상호명입니다.' };
+
+          await setDoc(doc(db, 'cafeNames', cleanName), {
+            cafeName: stateObj.cafeName.trim(),
+            nickname: stateObj.nickname,
+            playerId: cleanId,
+            createdAt: Date.now()
+          });
+
+          await setDoc(doc(db, 'cafeUsers', cleanId), {
+            playerId: cleanId,
+            pin: stateObj.pin,
+            cafeName: stateObj.cafeName.trim(),
+            nickname: stateObj.nickname,
+            saveData: JSON.stringify(stateObj),
+            updatedAt: Date.now()
+          });
+          return { ok: true };
+        } catch (err) {
+          return { ok: true }; // 오프라인 예외 시 로컬 진행 허용
+        }
+      },
+      async saveCloudState(stateObj) {
+        const cleanId = (stateObj.playerId || '').trim().toLowerCase();
+        if (!db || !stateObj.started || !cleanId || !stateObj.pin) return false;
+        try {
+          await setDoc(doc(db, 'cafeUsers', cleanId), {
+            playerId: cleanId,
+            pin: stateObj.pin,
+            cafeName: stateObj.cafeName,
+            nickname: stateObj.nickname,
+            saveData: JSON.stringify(stateObj),
+            updatedAt: Date.now()
+          }, { merge: true });
+          return true;
+        } catch (err) {
+          return false;
+        }
+      },
+      async loadCloudState(rawId, pin) {
+        const cleanId = rawId.trim().toLowerCase();
+        if (!db) return { ok: false, reason: '클라우드 서버에 연결되지 않았습니다.' };
+        try {
+          const snap = await getDoc(doc(db, 'cafeUsers', cleanId));
+          if (!snap.exists()) {
+            return { ok: false, reason: '존재하지 않는 사장님 아이디입니다.' };
+          }
+          const data = snap.data();
+          if (String(data.pin) !== String(pin).trim()) {
+            return { ok: false, reason: '4자리 PIN 비밀번호가 일치하지 않습니다.' };
+          }
+          const parsedState = JSON.parse(data.saveData);
+          return { ok: true, state: parsedState };
+        } catch (err) {
+          return { ok: false, reason: '데이터를 불러오는 중 오류가 발생했습니다.' };
+        }
+      },
+      async syncRanking(stateObj, netWorth, districtName) {
+        const cleanId = (stateObj.playerId || '').trim().toLowerCase();
+        if (!db || !stateObj.started || !cleanId) return;
+        try {
+          await setDoc(doc(db, 'rankings', cleanId), {
+            nickname: stateObj.nickname,
+            cafeName: stateObj.cafeName,
+            netWorth: Math.round(netWorth),
+            districtName,
+            starPrestige: stateObj.starPrestige || 0,
+            updatedAt: Date.now()
+          }, { merge: true });
+        } catch (err) {}
+      },
+      async fetchTopRankings() {
+        if (!db) return [];
+        try {
+          const q = query(collection(db, 'rankings'), orderBy('netWorth', 'desc'), limit(30));
+          const snap = await getDocs(q);
+          const list = [];
+          snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+          return list;
+        } catch (err) {
+          return [];
+        }
+      }
+    };
+  </script>
+
+  <!-- =========================================================
+       SCRIPT 2: 게임 엔진 · 핀치줌/드래그 수도권 지도 · 스마트폰 · ASMR
+       ========================================================= -->
+  <script>
+    const MONTH_SECONDS = 3600; // 현실 1시간 = 게임 1개월
+    const DAY_SECONDS = 120;    // 현실 2분 = 게임 하루 (1분 = 12시간)
+
+    // 35개 수도권 상권 (인천 6 · 경기 11 · 서울 18)
+    const METRO_DISTRICTS = [
+      // 인천 (6)
+      { id: 'ic_gaehang', region: '인천', name: '동인천 개항로', x: 18.5, y: 54.0, deposit: 3200000, rent: 320000, mult: 1.0, cap: 12, trait: '개항장 레트로 골목 · 초기 창업 최적', building: 420000000 },
+      { id: 'ic_bupyeong', region: '인천', name: '부평 문화의거리', x: 26.5, y: 49.0, deposit: 4500000, rent: 460000, mult: 1.3, cap: 15, trait: '지하상가 유동인구 · 빠른 테이크아웃', building: 680000000 },
+      { id: 'ic_guwol', region: '인천', name: '구월동 로데오', x: 24.5, y: 58.5, deposit: 9500000, rent: 820000, mult: 1.75, cap: 18, trait: '인천 핵심 상권 · 디저트 강세', building: 980000000 },
+      { id: 'ic_cheongna', region: '인천', name: '청라 커낼웨이', x: 19.5, y: 43.5, deposit: 14000000, rent: 1100000, mult: 2.1, cap: 22, trait: '수변 신도시 · 단골 친밀도 상승', building: 1250000000 },
+      { id: 'ic_songdo', region: '인천', name: '송도 센트럴파크', x: 20.5, y: 67.0, deposit: 32000000, rent: 2100000, mult: 3.4, cap: 32, trait: '국제업무지구 · 고단가 메뉴 유리', building: 2200000000 },
+      { id: 'ic_yeongjong', region: '인천', name: '영종·을왕리 오션뷰', x: 7.5, y: 50.0, deposit: 24000000, rent: 1500000, mult: 2.8, cap: 34, trait: '서해 오션뷰 대형 카페 · 넉넉한 평수', building: 1700000000 },
+
+      // 경기 북부·동부 (5)
+      { id: 'gg_uijeongbu', region: '경기', name: '의정부 로데오', x: 53.0, y: 20.5, deposit: 4800000, rent: 450000, mult: 1.25, cap: 14, trait: '경기 북부 중심 · 안정적인 월세', building: 620000000 },
+      { id: 'gg_ilsan', region: '경기', name: '일산 호수공원', x: 33.5, y: 27.0, deposit: 13000000, rent: 1050000, mult: 2.0, cap: 22, trait: '호수 산책로 · 단골 친밀도 +20%', building: 1200000000 },
+      { id: 'gg_paju', region: '경기', name: '파주 헤이리·출판단지', x: 25.5, y: 16.5, deposit: 19000000, rent: 1300000, mult: 2.5, cap: 32, trait: '교외 대형 로스터리 · 시그니처 강세', building: 1500000000 },
+      { id: 'gg_paldang', region: '경기', name: '남양주 팔당 한강뷰', x: 69.5, y: 43.0, deposit: 28000000, rent: 1750000, mult: 3.1, cap: 36, trait: '한강 드라이브 명소 · 대형 수용량', building: 1950000000 },
+      { id: 'gg_yangpyeong', region: '경기', name: '양평 두물머리 리버뷰', x: 82.5, y: 47.5, deposit: 22000000, rent: 1400000, mult: 2.7, cap: 35, trait: '교외 힐링 상권 · 주말 객단가 높음', building: 1650000000 },
+
+      // 경기 남부 (6)
+      { id: 'gg_anyang', region: '경기', name: '안양 범계 로데오', x: 43.5, y: 65.5, deposit: 16000000, rent: 1250000, mult: 2.3, cap: 22, trait: '역세권 학원·오피스 · 빠른 회전율', building: 1400000000 },
+      { id: 'gg_haenggung', region: '경기', name: '수원 행궁동(행리단길)', x: 47.5, y: 78.5, deposit: 6500000, rent: 620000, mult: 1.65, cap: 18, trait: '감성 디저트 성지 · SNS 유행 보너스', building: 1850000000 },
+      { id: 'gg_gwanggyo', region: '경기', name: '광교 호수공원', x: 53.5, y: 76.5, deposit: 38000000, rent: 2400000, mult: 3.9, cap: 30, trait: '신도시 프리미엄 · 가족 단골 강세', building: 2500000000 },
+      { id: 'gg_dongtan', region: '경기', name: '화성 동탄 센트럴', x: 55.0, y: 88.5, deposit: 34000000, rent: 2200000, mult: 3.6, cap: 30, trait: '젊은 신도시 · 단골 유입 빠름', building: 2300000000 },
+      { id: 'gg_jeongja', region: '경기', name: '분당 정자동 카페거리', x: 58.5, y: 66.5, deposit: 65000000, rent: 3900000, mult: 5.6, cap: 40, trait: '원조 브런치·카페거리 · 고단가', building: 3800000000 },
+      { id: 'gg_pangyo', region: '경기', name: '판교 테크노밸리', x: 56.5, y: 61.5, deposit: 110000000, rent: 6400000, mult: 8.6, cap: 58, trait: 'IT 오피스 핵심 · 점심 주문 폭주', building: 5800000000 },
+
+      // 서울 (18)
+      { id: 'sl_sinlim', region: '서울', name: '관악 신림 고시촌', x: 43.5, y: 55.5, deposit: 3800000, rent: 360000, mult: 1.1, cap: 11, trait: '카공족 성지 · 서울 초기 창업 추천', building: 480000000 },
+      { id: 'sl_yeonsinnae', region: '서울', name: '은평 연신내 골목', x: 42.5, y: 35.5, deposit: 5500000, rent: 490000, mult: 1.3, cap: 13, trait: '북한산 등산객·동네 단골 상권', building: 620000000 },
+      { id: 'sl_nowon', region: '서울', name: '노원 대학가', x: 57.5, y: 32.5, deposit: 7000000, rent: 620000, mult: 1.5, cap: 15, trait: '동북부 최대 학원·대학 상권', building: 780000000 },
+      { id: 'sl_mangwon', region: '서울', name: '마포 망원동 골목', x: 39.5, y: 45.0, deposit: 8500000, rent: 780000, mult: 1.85, cap: 17, trait: '소규모 개성 카페 성지', building: 1050000000 },
+      { id: 'sl_hyehwa', region: '서울', name: '종로 혜화 대학로', x: 52.0, y: 38.5, deposit: 15000000, rent: 1180000, mult: 2.25, cap: 20, trait: '공연·데이트 상권 · 주말 강세', building: 1300000000 },
+      { id: 'sl_kondae', region: '서울', name: '광진 건대입구', x: 59.5, y: 46.5, deposit: 21000000, rent: 1550000, mult: 2.75, cap: 24, trait: '젊은 유동인구 · 디저트 회전율', building: 1600000000 },
+      { id: 'sl_sinchon', region: '서울', name: '서대문 신촌·이대', x: 43.5, y: 42.5, deposit: 24000000, rent: 1700000, mult: 3.0, cap: 26, trait: '대학가 밀집 · 단골 확보 유리', building: 1750000000 },
+      { id: 'sl_sadang', region: '서울', name: '동작 사당 환승역', x: 47.5, y: 56.0, deposit: 30000000, rent: 2050000, mult: 3.4, cap: 28, trait: '경기 남부 관문 · 출퇴근 테이크아웃', building: 2050000000 },
+      { id: 'sl_hongdae', region: '서울', name: '마포 홍대·연남동', x: 40.5, y: 42.5, deposit: 46000000, rent: 2900000, mult: 4.5, cap: 36, trait: '글로벌 관광·트렌드 1번지', building: 2800000000 },
+      { id: 'sl_itaewon', region: '서울', name: '용산 이태원·한남', x: 49.5, y: 48.0, deposit: 60000000, rent: 3700000, mult: 5.3, cap: 42, trait: '하이엔드 부촌·외국인 단골', building: 3500000000 },
+      { id: 'sl_euljiro', region: '서울', name: '중구 을지로 힙지로', x: 50.8, y: 43.0, deposit: 68000000, rent: 4100000, mult: 6.0, cap: 45, trait: '뉴트로 감성 & 도심 오피스', building: 3900000000 },
+      { id: 'sl_seongsu', region: '서울', name: '성동 성수동 연무장길', x: 56.0, y: 45.0, deposit: 82000000, rent: 4900000, mult: 6.9, cap: 52, trait: '팝업·스페셜티 커피 성지', building: 4600000000 },
+      { id: 'sl_yeouido', region: '서울', name: '영등포 여의도 금융가', x: 41.5, y: 50.0, deposit: 100000000, rent: 5900000, mult: 8.1, cap: 58, trait: '증권가 오피스 · 점심시간 폭발', building: 5500000000 },
+      { id: 'sl_jamsil', region: '서울', name: '송파 잠실 석촌호수', x: 61.5, y: 52.0, deposit: 125000000, rent: 7100000, mult: 9.5, cap: 65, trait: '초대형 복합몰·호수 상권', building: 6800000000 },
+      { id: 'sl_yangjae', region: '서울', name: '서초 양재·교대', x: 51.5, y: 56.0, deposit: 145000000, rent: 7900000, mult: 10.8, cap: 72, trait: '법조·IT 기업 밀집 상권', building: 7600000000 },
+      { id: 'sl_apgujeong', region: '서울', name: '강남 압구정 로데오', x: 54.8, y: 49.5, deposit: 210000000, rent: 11000000, mult: 14.5, cap: 85, trait: '프리미엄 디저트·셀럽 상권', building: 9800000000 },
+      { id: 'sl_gangnam', region: '서울', name: '강남역 10번출구 대로변', x: 53.0, y: 53.0, deposit: 290000000, rent: 14500000, mult: 18.5, cap: 100, trait: '대한민국 유동인구 최정점', building: 13500000000 },
+      { id: 'sl_cheongdam', region: '서울', name: '강남 청담 명품거리', x: 57.5, y: 49.5, deposit: 420000000, rent: 19500000, mult: 24.5, cap: 120, trait: '최고급 부티크 & 건물주 종착지', building: 18500000000 }
+    ];
+
+    const STAFF_TEMPLATES = [
+      { id: 'parttimer', name: '초보 바리스타 알바', icon: '🧑‍🎓', baseCost: 180000, cps: 900, wage: 80000, desc: '기본 응대 및 홀 정리' },
+      { id: 'machine', name: '반자동 에스프레소 머신', icon: '⚙️', baseCost: 550000, cps: 2800, wage: 30000, desc: '추출 안정성 및 속도 강화' },
+      { id: 'barista', name: '수석 바리스타', icon: '👨‍🍳', baseCost: 1800000, cps: 9500, wage: 280000, desc: '라떼아트 & 단골 만족도 상승' },
+      { id: 'roaster', name: '매장 내 소형 로스터기', icon: '🔥', baseCost: 5500000, cps: 30000, wage: 120000, desc: '직접 원두 로스팅으로 풍미 극대화' },
+      { id: 'baker', name: '파티시에 & 디저트 쇼케이스', icon: '🍰', baseCost: 16000000, cps: 88000, wage: 650000, desc: '수제 베이커리로 객단가 상승' },
+      { id: 'manager', name: '전문 매장 점장', icon: '👔', baseCost: 48000000, cps: 260000, wage: 1500000, desc: '매장 전체 효율 & 피크타임 관리' }
+    ];
+
+    const INGREDIENTS = [
+      { id: 'bean', name: '스페셜티 원두', icon: '🫘', price100: 15000 },
+      { id: 'milk', name: '1A등급 우유', icon: '🥛', price100: 12000 },
+      { id: 'vanilla', name: '마다가스카르 바닐라빈', icon: '🌼', price100: 22000 },
+      { id: 'matcha', name: '제주 유기농 말차', icon: '🍵', price100: 25000 },
+      { id: 'cream', name: '동물성 생크림', icon: '🍦', price100: 20000 },
+      { id: 'pistachio', name: '시칠리아 피스타치오', icon: '🥜', price100: 35000 }
+    ];
+
+    const REGULAR_POOL = [
+      {
+        id: 'reg_park', name: '공인중개사 박 소장', icon: '🧐', job: '인근 부동산 소장',
+        favIng: 'bean', favLabel: '스페셜티 원두',
+        intro: '매일 아침 진한 에스프레소 한 잔을 마시며 수도권 땅값을 살피는 동네 정보통입니다.',
+        perkTitle: '부동산 시세 선행 정보',
+        perkDesc: '부동산 매입비 할인(-3%~-15%) 및 급등 예정 지역 문자 제보'
+      },
+      {
+        id: 'reg_jieun', name: '맘카페 스태프 지은 씨', icon: '👩‍👧', job: '지역 커뮤니티 운영진',
+        favIng: 'cream', favLabel: '동물성 생크림',
+        intro: '달콤한 크림 라떼를 좋아하며, 마음에 든 카페는 동네 커뮤니티에 정성껏 후기를 남깁니다.',
+        perkTitle: '입소문 & SNS 트래픽',
+        perkDesc: '전체 매장 매출 +3.5%~+17.5% 영구 증가'
+      },
+      {
+        id: 'reg_choi', name: '은퇴 바리스타 최 선생', icon: '👴', job: '전직 1세대 로스터',
+        favIng: 'vanilla', favLabel: '마다가스카르 바닐라빈',
+        intro: '원두 향만 맡아도 로스팅 상태를 알아맞히는 장인. 가끔 원두 납품처를 소개해 줍니다.',
+        perkTitle: '원재료 도매가 할인',
+        perkDesc: '원재료 사입 비용 -5%~-25% 할인'
+      },
+      {
+        id: 'reg_minho', name: '판교 개발자 민호', icon: '💻', job: '밤샘 코딩하는 시니어 개발자',
+        favIng: 'matcha', favLabel: '제주 유기농 말차',
+        intro: '조용한 카페 구석 자리에서 노트북을 펼치고 말차 라떼를 마시며 일하는 단골입니다.',
+        perkTitle: '스마트 절세 & 유지비 감면',
+        perkDesc: '매월 정산 세금 -5%~-25% 감면'
+      },
+      {
+        id: 'reg_sujin', name: '미대 졸업반 수진', icon: '🎨', job: '일러스트레이터 지망생',
+        favIng: 'pistachio', favLabel: '시칠리아 피스타치오',
+        intro: '카페 창밖 풍경을 스케치하며 메뉴판 손글씨와 인테리어 감각을 조언해 줍니다.',
+        perkTitle: '시그니처 메뉴 객단가 상승',
+        perkDesc: '시그니처 메뉴 판매 배율 +5%~+25% 상승'
+      },
+      {
+        id: 'reg_hana', name: '항공 승무원 하나', icon: '✈️', job: '국제선 객실 사무장',
+        favIng: 'milk', favLabel: '1A등급 우유',
+        intro: '비행 전후로 들러 부드러운 플랫화이트를 즐기며 해외 카페 트렌드를 들려줍니다.',
+        perkTitle: '프리미엄 추출 단가',
+        perkDesc: '수동·자동 커피 추출 단가 +5%~+25% 영구 증가'
+      }
+    ];
+
+    const RIVAL_CAFES = [
+      { name: '청담블루보틀즈', nickname: '청담건물주', netWorth: 3800000000, districtName: '강남 청담 명품거리', starPrestige: 2 },
+      { name: '판교코더스로스터리', nickname: '테크노밸리왕', netWorth: 1450000000, districtName: '판교 테크노밸리', starPrestige: 1 },
+      { name: '성수붉은벽돌커피', nickname: '성수장인', netWorth: 780000000, districtName: '성동 성수동 연무장길', starPrestige: 1 },
+      { name: '송도센트럴라떼', nickname: '인천불주먹', netWorth: 320000000, districtName: '송도 센트럴파크', starPrestige: 0 },
+      { name: '행궁동크림하우스', nickname: '수원왕갈비', netWorth: 140000000, districtName: '수원 행궁동(행리단길)', starPrestige: 0 },
+      { name: '개항로새벽원두', nickname: '동인천토박이', netWorth: 24000000, districtName: '동인천 개항로', starPrestige: 0 }
+    ];
+
+    // =========================================================
+    // 게임 상태 & localStorage + Firebase 클라우드 저장
+    // =========================================================
+    const SAVE_KEY = 'metro_cafe_tycoon_v4';
+
+    let state = {
+      playerId: '',
+      pin: '',
+      started: false,
+      nickname: '',
+      cafeName: '',
+      cash: 8000000,
+      totalEarned: 0,
+      districtId: 'ic_gaehang',
+      extraSize: 0,
+      staff: { parttimer: 0, machine: 0, barista: 0, roaster: 0, baker: 0, manager: 0 },
+      autoBrewLevel: 0,
+      autoBrewInterval: 2.5,
+      stock: { bean: 150, milk: 80, vanilla: 30, matcha: 20, cream: 20, pistachio: 10 },
+      autoRestock: false,
+      menus: [],
+      activeMenuIdx: -1,
+      regulars: [],
+      branches: {},
+      buildings: {},
+      districtMods: {},
+      trendingIng: 'pistachio',
+      monthCount: 1,
+      monthElapsedSec: 0,
+      dayElapsedSec: 36, // 아침 07:12경 시작
+      weather: 'clear',
+      franchiseMode: null,
+      franchiseStores: 0,
+      starPrestige: 0,
+      franchiseCooldownMonths: 0,
+      franchiseOffered: false,
+      stocks: [
+        { id: 's1', name: '국민아메리카노(주)', price: 24000, prev: 24000, shares: 0 },
+        { id: 's2', name: '아라비카원두선물', price: 48000, prev: 48000, shares: 0 },
+        { id: 's3', name: '성수디저트홀딩스', price: 85000, prev: 85000, shares: 0 },
+        { id: 's4', name: '수도권프라임리츠', price: 320000, prev: 320000, shares: 0 }
+      ],
+      coins: [
+        { id: 'c1', name: '빈코인 (BNC)', price: 1200000, prev: 1200000, qty: 0, staked: 0 },
+        { id: 'c2', name: '에스프레소이더 (ESP)', price: 180000, prev: 180000, qty: 0, staked: 0 },
+        { id: 'c3', name: '시바루왁 (LUWAK)', price: 420, prev: 420, qty: 0, staked: 0 },
+        { id: 'c4', name: '두바이쫀득코인 (DBC)', price: 3500, prev: 3500, qty: 0, staked: 0 }
+      ],
+      smsList: [],
+      unreadSms: 0,
+      snsPosts: [
+        {
+          id: 1,
+          author: '@seoul_cafe_zip',
+          badge: '수도권 카페 매거진',
+          district: '성동 성수동 연무장길',
+          text: '요즘 수도권 카페 씬에서 가장 반응 좋은 토핑은 단연 #시칠리아피스타치오! 고소한 에스프레소랑 조합이 미쳤어요 ☕🥜',
+          tags: '#수도권카페투어 #피스타치오라떼 #카페트렌드',
+          likes: 342,
+          liked: false,
+          time: '방금 전'
+        },
+        {
+          id: 2,
+          author: '@incheon_walk',
+          badge: '인천 로컬 큐레이터',
+          district: '동인천 개항로',
+          text: '개항로 골목마다 조용히 커피 내리는 로스터리들이 하나둘 불을 밝히고 있네요. 비 오는 날 창가 자리 강추 🌧️',
+          tags: '#개항로카페 #동인천 #힐링카페',
+          likes: 189,
+          liked: false,
+          time: '12분 전'
+        }
+      ],
+      unreadSns: 1
+    };
+
+    let userIdCheckedValid = false;
+    let nameCheckedValid = false;
+    let selectedInitDistrictId = null;
+    let selectedMainMapDistrictId = 'ic_gaehang';
+    let pendingCandidateId = null;
+    let zenMode = false;
+    let floorCustomers = [];
+    let lastCloudSyncTime = 0;
+    const mapViews = {
+      init: { scale: 0.9, x: -30, y: -15, dragging: false, startX: 0, startY: 0, pinchDist: 0, pinchScale: 0.9 },
+      main: { scale: 1.0, x: -40, y: -20, dragging: false, startX: 0, startY: 0, pinchDist: 0, pinchScale: 1.0 }
+    };
+
+    const fmt = n => Math.floor(n).toLocaleString('ko-KR') + '원';
+    const fmtShort = n => {
+      const abs = Math.abs(n);
+      const sign = n < 0 ? '-' : '';
+      if (abs >= 100000000) return sign + (abs / 100000000).toFixed(2).replace(/\.00$/, '') + '억 원';
+      if (abs >= 10000) return sign + Math.floor(abs / 10000).toLocaleString() + '만 원';
+      return sign + Math.floor(abs).toLocaleString() + '원';
+    };
+
+    function showToast(msg) {
+      const box = document.getElementById('toast-box');
+      const el = document.createElement('div');
+      el.className = 'px-3.5 py-2 rounded-2xl bg-[#241d18]/95 border border-amber-500/50 text-xs font-bold text-amber-100 shadow-xl text-center transition-opacity duration-300';
+      el.textContent = msg;
+      box.appendChild(el);
+      setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 2500);
+    }
+
+    function saveLocal() {
+      try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) {}
+    }
+
+    async function saveAllProgress(showNotice = false) {
+      saveLocal();
+      if (!state.started || !window.FB_API) return;
+      const badge = document.getElementById('hud-cloud-badge');
+      if (badge) badge.textContent = '🔄 저장중...';
+      const ok = await window.FB_API.saveCloudState(state);
+      await window.FB_API.syncRanking(state, calcNetWorth(), getCurrentDistrict().name);
+      lastCloudSyncTime = Date.now();
+      if (badge) {
+        badge.textContent = ok ? '☁️ 클라우드 저장됨' : '💾 로컬 저장됨';
+      }
+      if (showNotice) {
+        showToast(ok ? '☁️ 클라우드 서버에 안전하게 저장되었습니다! (다른 기기에서 이어하기 가능)' : '💾 기기 내부에 저장되었습니다.');
+      }
+    }
+
+    function loadLocal() {
+      try {
+        const raw = localStorage.getItem(SAVE_KEY);
+        if (!raw) return false;
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.started) {
+          state = { ...state, ...parsed };
+          return true;
+        }
+      } catch (e) {}
+      return false;
+    }
+
+    function switchAccountOrReset() {
+      localStorage.removeItem(SAVE_KEY);
+      location.reload();
+    }
+
+    // =========================================================
+    // 온보딩 (신규 가입 ID·PIN·상호명 중복 확인 / 기존 매장 클라우드 로그인)
+    // =========================================================
+    function switchOnboardTab(tab) {
+      const isNew = tab === 'new';
+      document.getElementById('onboard-panel-new').classList.toggle('hidden', !isNew);
+      document.getElementById('onboard-panel-load').classList.toggle('hidden', isNew);
+      document.getElementById('tab-onboard-new').className = isNew
+        ? 'py-2 rounded-xl bg-amber-600 text-white transition'
+        : 'py-2 rounded-xl text-stone-400 hover:text-stone-200 transition';
+      document.getElementById('tab-onboard-load').className = !isNew
+        ? 'py-2 rounded-xl bg-emerald-600 text-white transition'
+        : 'py-2 rounded-xl text-stone-400 hover:text-stone-200 transition';
+    }
+
+    function updateStep2ButtonState() {
+      const pin = (document.getElementById('input-pin')?.value || '').trim();
+      const nick = (document.getElementById('input-nickname')?.value || '').trim();
+      const validPin = /^\d{4}$/.test(pin);
+      const validNick = nick.length >= 2;
+      document.getElementById('btn-go-step2').disabled = !(userIdCheckedValid && nameCheckedValid && validPin && validNick);
+    }
+
+    function onUserIdInput() {
+      userIdCheckedValid = false;
+      const raw = document.getElementById('input-userid').value.trim();
+      const st = document.getElementById('userid-status');
+      if (!/^[a-zA-Z0-9]{4,16}$/.test(raw)) {
+        st.textContent = '영문 소문자·숫자 조합 4~16자로 입력해주세요.';
+        st.className = 'text-[11px] mt-1 text-stone-400';
+      } else {
+        st.textContent = '우측 [ID 중복확인] 버튼을 눌러 사용 가능 여부를 확인하세요.';
+        st.className = 'text-[11px] mt-1 text-amber-300';
+      }
+      updateStep2ButtonState();
+    }
+
+    async function verifyUserIdServer() {
+      const raw = document.getElementById('input-userid').value.trim().toLowerCase();
+      const st = document.getElementById('userid-status');
+      const btn = document.getElementById('btn-check-userid');
+
+      if (!/^[a-z0-9]{4,16}$/.test(raw)) {
+        st.textContent = '❌ 영문·숫자 4~16자 이내로 입력해주세요.';
+        st.className = 'text-[11px] mt-1 text-rose-400 font-bold';
+        return;
+      }
+
+      btn.textContent = '확인중...';
+      btn.disabled = true;
+      const taken = await window.FB_API.checkUserIdTaken(raw);
+      btn.textContent = 'ID 중복확인';
+      btn.disabled = false;
+
+      if (taken) {
+        userIdCheckedValid = false;
+        st.textContent = '❌ 이미 사용 중인 아이디입니다! 다른 아이디를 입력해주세요.';
+        st.className = 'text-[11px] mt-1 text-rose-400 font-bold';
+      } else {
+        userIdCheckedValid = true;
+        st.textContent = `✅ [${raw}] 사용 가능한 고유 아이디입니다!`;
+        st.className = 'text-[11px] mt-1 text-emerald-400 font-bold';
+      }
+      updateStep2ButtonState();
+    }
+
+    function onPinOrNickInput() {
+      updateStep2ButtonState();
+    }
+
+    function pickRandomCafeName() {
+      const adj = ['새벽', '한강', '윤슬', '골목', '오후세시', '달빛', '구름', '따스한', '서해'];
+      const noun = ['로스터리', '커피방앗간', '에스프레소바', '브루잉', '원두공방', '테라스'];
+      document.getElementById('input-cafename').value =
+        adj[Math.floor(Math.random() * adj.length)] + noun[Math.floor(Math.random() * noun.length)];
+      onCafeNameInput();
+    }
+
+    function onCafeNameInput() {
+      nameCheckedValid = false;
+      const cafe = document.getElementById('input-cafename').value.trim();
+      const fb = document.getElementById('cafename-status');
+      fb.textContent = cafe.length >= 2 ? '우측 [상호 중복확인] 버튼을 눌러주세요.' : '2~12자 이내 고유한 상호명을 입력하세요.';
+      fb.className = 'text-[11px] mt-1 text-stone-400';
+      updateStep2ButtonState();
+    }
+
+    async function verifyCafeNameServer() {
+      const cafe = document.getElementById('input-cafename').value.trim();
+      const fb = document.getElementById('cafename-status');
+      const btn = document.getElementById('btn-check-name');
+
+      if (cafe.length < 2) {
+        fb.textContent = '상호명을 2자 이상 입력해주세요.';
+        fb.className = 'text-[11px] mt-1 text-rose-400 font-bold';
+        return;
+      }
+
+      btn.textContent = '확인중...';
+      btn.disabled = true;
+      const taken = await window.FB_API.checkCafeNameTaken(cafe);
+      btn.textContent = '상호 중복확인';
+      btn.disabled = false;
+
+      if (taken) {
+        nameCheckedValid = false;
+        fb.textContent = '❌ 이미 다른 사장님이 사용 중인 상호명입니다!';
+        fb.className = 'text-[11px] mt-1 text-rose-400 font-bold';
+      } else {
+        nameCheckedValid = true;
+        fb.textContent = '✅ 수도권 내 유일한 상호명입니다! 개업 가능';
+        fb.className = 'text-[11px] mt-1 text-emerald-400 font-bold';
+      }
+      updateStep2ButtonState();
+    }
+
+    function proceedToInitialMap() {
+      if (!userIdCheckedValid || !nameCheckedValid) return;
+      const pin = document.getElementById('input-pin').value.trim();
+      const nick = document.getElementById('input-nickname').value.trim();
+      if (!/^\d{4}$/.test(pin)) {
+        showToast('4자리 숫자 PIN 번호를 입력해주세요.');
+        return;
+      }
+      if (nick.length < 2) {
+        showToast('사장님 닉네임을 2자 이상 입력해주세요.');
+        return;
+      }
+
+      state.playerId = document.getElementById('input-userid').value.trim().toLowerCase();
+      state.pin = pin;
+      state.nickname = nick;
+      state.cafeName = document.getElementById('input-cafename').value.trim();
+
+      document.getElementById('onboard-step1').classList.add('hidden');
+      document.getElementById('onboard-step2').classList.remove('hidden');
+      document.getElementById('onboard-step2').classList.add('flex');
+      mountInteractiveMetroMap('init-metro-viewport', 'init', true);
+    }
+
+    function backToStep1() {
+      document.getElementById('onboard-step2').classList.add('hidden');
+      document.getElementById('onboard-step2').classList.remove('flex');
+      document.getElementById('onboard-step1').classList.remove('hidden');
+    }
+
+    async function loginAndRestoreCloud() {
+      const uid = document.getElementById('login-userid').value.trim().toLowerCase();
+      const pin = document.getElementById('login-pin').value.trim();
+      const stEl = document.getElementById('login-status');
+      const btn = document.getElementById('btn-cloud-login');
+
+      if (!uid || !/^\d{4}$/.test(pin)) {
+        stEl.textContent = '⚠️ 아이디와 4자리 숫자 PIN 번호를 정확히 입력해주세요.';
+        stEl.className = 'text-[11px] text-rose-400 font-bold';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = '🔄 클라우드 데이터 조회중...';
+      stEl.textContent = '';
+
+      const res = await window.FB_API.loadCloudState(uid, pin);
+      btn.disabled = false;
+      btn.textContent = '☁️ 클라우드에서 내 카페 불러오기';
+
+      if (!res.ok) {
+        stEl.textContent = `❌ ${res.reason}`;
+        stEl.className = 'text-[11px] text-rose-400 font-bold';
+        return;
+      }
+
+      state = { ...state, ...res.state, playerId: uid, pin, started: true };
+      selectedMainMapDistrictId = state.districtId;
+      saveLocal();
+      document.getElementById('onboarding-modal').classList.add('hidden');
+      renderAll();
+      showToast(`☁️ 환영합니다, ${state.nickname} 사장님! 「${state.cafeName}」 매장을 불러왔습니다.`);
+    }
+
+    // =========================================================
+    // 카페 힐링 ASMR & 로파이 피아노 사운드 엔진 (Web Audio API)
+    // =========================================================
+    const AudioEngine = {
+      enabled: false,
+      ctx: null,
+      gains: {},
+      vols: { lofi: 0.55, rain: 0.45, cafe: 0.6, fire: 0.35 },
+
+      init() {
+        if (this.ctx) {
+          if (this.ctx.state === 'suspended') this.ctx.resume();
+          return;
+        }
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        this.ctx = new AC();
+        ['lofi', 'rain', 'cafe', 'fire'].forEach(k => {
+          const g = this.ctx.createGain();
+          g.gain.value = 0;
+          g.connect(this.ctx.destination);
+          this.gains[k] = g;
+        });
+        this.startRainNoise();
+        this.startFireNoise();
+        this.startLofiLoop();
+        this.startCafeFoleyLoop();
+      },
+
+      startRainNoise() {
+        const len = this.ctx.sampleRate * 3;
+        const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        let b0 = 0, b1 = 0, b2 = 0;
+        for (let i = 0; i < len; i++) {
+          const w = Math.random() * 2 - 1;
+          b0 = 0.99765 * b0 + w * 0.099046;
+          b1 = 0.96300 * b1 + w * 0.2965164;
+          b2 = 0.57000 * b2 + w * 1.0526913;
+          data[i] = (b0 + b1 + b2 + w * 0.1848) * 0.055;
+        }
+        const src = this.ctx.createBufferSource();
+        src.buffer = buf;
+        src.loop = true;
+        const flt = this.ctx.createBiquadFilter();
+        flt.type = 'lowpass';
+        flt.frequency.value = 920;
+        src.connect(flt);
+        flt.connect(this.gains.rain);
+        src.start();
+      },
+
+      startFireNoise() {
+        const len = this.ctx.sampleRate * 2;
+        const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < len; i++) {
+          data[i] = Math.random() > 0.996 ? (Math.random() * 2 - 1) * 0.35 : (Math.random() * 2 - 1) * 0.015;
+        }
+        const src = this.ctx.createBufferSource();
+        src.buffer = buf;
+        src.loop = true;
+        const flt = this.ctx.createBiquadFilter();
+        flt.type = 'bandpass';
+        flt.frequency.value = 600;
+        src.connect(flt);
+        flt.connect(this.gains.fire);
+        src.start();
+      },
+
+      startLofiLoop() {
+        const chords = [
+          [174.61, 220.00, 261.63, 329.63],
+          [164.81, 196.00, 246.94, 293.66],
+          [146.83, 174.61, 220.00, 261.63],
+          [130.81, 164.81, 196.00, 246.94]
+        ];
+        let idx = 0;
+        const play = () => {
+          if (!this.enabled || !this.ctx) return;
+          const now = this.ctx.currentTime;
+          const chord = chords[idx++ % chords.length];
+          chord.forEach((freq, i) => {
+            const osc = this.ctx.createOscillator();
+            const g = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + i * 0.06);
+            g.gain.setValueAtTime(0.001, now + i * 0.06);
+            g.gain.linearRampToValueAtTime(0.045, now + i * 0.06 + 0.35);
+            g.gain.exponentialRampToValueAtTime(0.0008, now + 3.4);
+            osc.connect(g);
+            g.connect(this.gains.lofi);
+            osc.start(now + i * 0.06);
+            osc.stop(now + 3.5);
+          });
+        };
+        play();
+        setInterval(play, 3600);
+      },
+
+      startCafeFoleyLoop() {
+        setInterval(() => {
+          if (!this.enabled || !this.ctx) return;
+          const now = this.ctx.currentTime;
+          if (Math.random() > 0.45) {
+            const osc = this.ctx.createOscillator();
+            const g = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(1850 + Math.random() * 400, now);
+            g.gain.setValueAtTime(0.04, now);
+            g.gain.exponentialRampToValueAtTime(0.0005, now + 0.14);
+            osc.connect(g); g.connect(this.gains.cafe);
+            osc.start(now); osc.stop(now + 0.15);
+          } else {
+            const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.8, this.ctx.sampleRate);
+            const d = buf.getChannelData(0);
+            for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * 0.08;
+            const src = this.ctx.createBufferSource();
+            src.buffer = buf;
+            const flt = this.ctx.createBiquadFilter();
+            flt.type = 'highpass'; flt.frequency.value = 2400;
+            const g = this.ctx.createGain();
+            g.gain.setValueAtTime(0.001, now);
+            g.gain.linearRampToValueAtTime(0.055, now + 0.2);
+            g.gain.exponentialRampToValueAtTime(0.001, now + 0.78);
+            src.connect(flt); flt.connect(g); g.connect(this.gains.cafe);
+            src.start(now);
+          }
+        }, 5200);
+      },
+
+      playChime(type = 'brew') {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        osc.type = 'sine';
+        if (type === 'door') {
+          osc.frequency.setValueAtTime(1046.5, now);
+          osc.frequency.setValueAtTime(1318.5, now + 0.12);
+          g.gain.setValueAtTime(0.06, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+          osc.connect(g); g.connect(this.ctx.destination);
+          osc.start(now); osc.stop(now + 0.46);
+        } else {
+          osc.frequency.setValueAtTime(587.33, now);
+          osc.frequency.exponentialRampToValueAtTime(880, now + 0.07);
+          g.gain.setValueAtTime(0.04, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+          osc.connect(g); g.connect(this.ctx.destination);
+          osc.start(now); osc.stop(now + 0.09);
+        }
+      }
+    };
+
+    // 모바일 iOS/Android 오디오 컨텍스트 첫 터치 자동 잠금 해제
+    ['touchstart', 'pointerdown', 'click'].forEach(evt => {
+      window.addEventListener(evt, () => {
+        if (AudioEngine.ctx && AudioEngine.ctx.state === 'suspended') {
+          AudioEngine.ctx.resume().catch(() => {});
+        }
+      }, { passive: true });
+    });
+
+    function syncAudioGains() {
+      if (!AudioEngine.ctx) return;
+      Object.keys(AudioEngine.gains).forEach(k => {
+        const rainBoost = (k === 'rain' && state.weather === 'rain') ? 1.5 : 1.0;
+        AudioEngine.gains[k].gain.value = AudioEngine.enabled ? Math.min(1, AudioEngine.vols[k] * rainBoost) : 0;
+      });
+    }
+
+    function toggleMasterAudio() {
+      AudioEngine.init();
+      AudioEngine.enabled = !AudioEngine.enabled;
+      syncAudioGains();
+      const btn = document.getElementById('btn-toggle-audio');
+      const status = document.getElementById('obj-radio-status');
+      if (AudioEngine.enabled) {
+        btn.textContent = '⏸️ 카페 ASMR 일시정지';
+        btn.className = 'w-full py-3 rounded-2xl bg-amber-600 hover:bg-amber-500 active:scale-95 text-white font-black text-sm transition shadow-lg';
+        status.textContent = '🎵 재생중';
+      } else {
+        btn.textContent = '▶️ 카페 ASMR 사운드 켜기';
+        btn.className = 'w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black text-sm transition shadow-lg';
+        status.textContent = 'ASMR 켜기';
+      }
+    }
+
+    function setAudioVolume(ch, val) {
+      AudioEngine.vols[ch] = Number(val) / 100;
+      document.getElementById(`vol-${ch}-val`).textContent = `${val}%`;
+      syncAudioGains();
+    }
+
+    // =========================================================
+    // 온보딩 & Firebase 중복 확인
+    // =========================================================
+    function pickRandomCafeName() {
+      const adj = ['새벽', '한강', '윤슬', '골목', '오후세시', '달빛', '구름', '따스한', '서해'];
+      const noun = ['로스터리', '커피방앗간', '에스프레소바', '브루잉', '원두공방', '테라스'];
+      document.getElementById('input-cafename').value =
+        adj[Math.floor(Math.random() * adj.length)] + noun[Math.floor(Math.random() * noun.length)];
+      onOnboardingInput();
+    }
+
+    function onOnboardingInput() {
+      nameCheckedValid = false;
+      document.getElementById('btn-go-step2').disabled = true;
+      const cafe = document.getElementById('input-cafename').value.trim();
+      const fb = document.getElementById('cafename-status');
+      fb.textContent = cafe.length >= 2 ? '우측 [중복확인] 버튼을 눌러 사용 가능 여부를 확인하세요.' : '2~12자 이내 고유한 상호명을 입력하세요.';
+      fb.className = 'text-[11px] mt-1.5 text-stone-400';
+    }
+
+    async function verifyCafeNameServer() {
+      const nick = document.getElementById('input-nickname').value.trim();
+      const cafe = document.getElementById('input-cafename').value.trim();
+      const fb = document.getElementById('cafename-status');
+      const btn = document.getElementById('btn-check-name');
+
+      if (nick.length < 2) {
+        fb.textContent = '먼저 사장님 닉네임을 2자 이상 입력해주세요.';
+        fb.className = 'text-[11px] mt-1.5 text-amber-400 font-bold';
+        return;
+      }
+      if (cafe.length < 2) {
+        fb.textContent = '상호명을 2자 이상 입력해주세요.';
+        fb.className = 'text-[11px] mt-1.5 text-rose-400 font-bold';
+        return;
+      }
+
+      btn.textContent = '확인중...';
+      btn.disabled = true;
+      const taken = await window.FB_API.checkCafeNameTaken(cafe);
+      btn.textContent = '중복확인';
+      btn.disabled = false;
+
+      if (taken) {
+        nameCheckedValid = false;
+        fb.textContent = '❌ 이미 다른 사장님이 사용 중인 상호명입니다!';
+        fb.className = 'text-[11px] mt-1.5 text-rose-400 font-bold';
+        document.getElementById('btn-go-step2').disabled = true;
+      } else {
+        nameCheckedValid = true;
+        fb.textContent = '✅ 수도권 내 유일한 상호명입니다! 개업 가능';
+        fb.className = 'text-[11px] mt-1.5 text-emerald-400 font-bold';
+        document.getElementById('btn-go-step2').disabled = false;
+      }
+    }
+
+    function proceedToInitialMap() {
+      if (!nameCheckedValid) return;
+      state.nickname = document.getElementById('input-nickname').value.trim();
+      state.cafeName = document.getElementById('input-cafename').value.trim();
+      document.getElementById('onboard-step1').classList.add('hidden');
+      document.getElementById('onboard-step2').classList.remove('hidden');
+      document.getElementById('onboard-step2').classList.add('flex');
+      mountInteractiveMetroMap('init-metro-viewport', 'init', true);
+    }
+
+    function backToStep1() {
+      document.getElementById('onboard-step2').classList.add('hidden');
+      document.getElementById('onboard-step2').classList.remove('flex');
+      document.getElementById('onboard-step1').classList.remove('hidden');
+    }
+
+    // =========================================================
+    // 수도권 정밀 지도 (터치 드래그 + 2손가락 핀치 줌 + 마우스 휠)
+    // =========================================================
+    function getDistrictCost(d, field) {
+      const mod = state.districtMods[d.id] || 1.0;
+      const parkDisc = getRegularPerkValue('reg_park', 'discount');
+      const mult = field === 'building' ? (1 - parkDisc) : 1;
+      return Math.round(d[field] * mod * mult);
+    }
+
+    function buildMetroCartographyHTML(modeKey, isInitialMode) {
+      const pinsHtml = METRO_DISTRICTS.map(d => {
+        const dep = getDistrictCost(d, 'deposit');
+        const isCurrent = !isInitialMode && d.id === state.districtId;
+        const isSelected = isInitialMode ? (d.id === selectedInitDistrictId) : (d.id === selectedMainMapDistrictId);
+        const canAfford = state.cash >= dep;
+        const lit = isCurrent || canAfford;
+
+        let pinStyle = 'bg-slate-900/90 text-slate-400 border border-slate-700/80 opacity-75';
+        if (isCurrent) pinStyle = 'bg-emerald-400 text-slate-950 font-black ring-4 ring-emerald-400/45 z-30';
+        else if (isSelected) pinStyle = 'bg-white text-slate-950 font-black ring-4 ring-amber-400 z-30 scale-110';
+        else if (lit) pinStyle = 'bg-amber-400 text-slate-950 font-bold metro-pin-lit z-20';
+
+        const shortName = d.name.split(' ')[1] || d.name;
+        const badgeColor = d.region === '서울' ? 'text-amber-900' : d.region === '인천' ? 'text-sky-900' : 'text-emerald-900';
+
+        return `
+          <button type="button" data-district-id="${d.id}" data-can-afford="${canAfford ? '1' : '0'}" data-dep="${dep}"
+            style="left:${d.x}%; top:${d.y}%;"
+            class="metro-pin-btn absolute -translate-x-1/2 -translate-y-1/2 px-2.5 py-1 rounded-full text-[11px] whitespace-nowrap transition cursor-pointer shadow-md ${pinStyle}">
+            ${isCurrent ? '🏠' : (lit ? '💡' : '')}<span class="${lit ? badgeColor : ''} font-extrabold mr-0.5">${d.region[0]}</span>${shortName}
+          </button>`;
+      }).join('');
+
+      return `
+        <div id="metro-stage-${modeKey}" class="relative origin-top-left will-change-transform" style="width: 960px; height: 600px;">
+          <svg viewBox="0 0 960 600" class="w-full h-full block">
+            <defs>
+              <pattern id="cityGrid-${modeKey}" width="24" height="24" patternUnits="userSpaceOnUse">
+                <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#1e293b" stroke-width="0.6" opacity="0.45" />
+              </pattern>
+              <radialGradient id="metroGlow-${modeKey}" cx="50%" cy="48%" r="42%">
+                <stop offset="0%" stop-color="#172033" />
+                <stop offset="100%" stop-color="#080c14" />
+              </radialGradient>
+            </defs>
+
+            <rect width="960" height="600" fill="url(#metroGlow-${modeKey})" />
+            <rect width="960" height="600" fill="url(#cityGrid-${modeKey})" />
+
+            <!-- 서해 & 인천 해안선 -->
+            <path d="M0,0 L215,0 L195,95 L155,140 L195,195 L170,260 L210,330 L185,405 L230,490 L195,600 L0,600 Z" fill="#061426" />
+            <path d="M95,115 Q125,105 142,135 Q138,175 105,178 Q82,155 95,115 Z" fill="#131e30" stroke="#1e3a5f" stroke-width="1.8" />
+            <path d="M45,275 Q88,262 115,288 Q105,318 62,315 Q36,298 45,275 Z" fill="#131e30" stroke="#1e3a5f" stroke-width="1.8" />
+            <path d="M168,382 L218,376 L224,422 L174,428 Z" fill="#131e30" stroke="#2563eb" stroke-width="1.5" />
+
+            <!-- 산지 지형 -->
+            <g fill="#0f2922" stroke="#14532d" stroke-width="1.2" opacity="0.7">
+              <ellipse cx="445" cy="185" rx="34" ry="22" />
+              <ellipse cx="430" cy="365" rx="28" ry="18" />
+              <ellipse cx="515" cy="375" rx="26" ry="18" />
+              <ellipse cx="645" cy="275" rx="32" ry="20" />
+            </g>
+            <g fill="#4ade80" opacity="0.35" font-size="10" font-weight="bold">
+              <text x="428" y="188">▲ 북한산</text>
+              <text x="412" y="368">▲ 관악산</text>
+              <text x="498" y="378">▲ 청계산</text>
+            </g>
+
+            <!-- 서울특별시 경계 -->
+            <path d="M375,215 Q455,165 555,195 Q605,255 575,325 Q490,365 400,335 Q355,280 375,215 Z"
+              fill="#192338" stroke="#60a5fa" stroke-width="2" stroke-dasharray="6 4" opacity="0.85" />
+
+            <!-- 한강 본류 및 지류 -->
+            <path d="M175,210 Q290,222 385,258 T555,282 Q650,270 725,245" fill="none" stroke="#1d4ed8" stroke-width="18" opacity="0.55" stroke-linecap="round" />
+            <path d="M725,245 Q810,180 920,115" fill="none" stroke="#1d4ed8" stroke-width="10" opacity="0.45" />
+            <path d="M725,245 Q830,295 950,355" fill="none" stroke="#1d4ed8" stroke-width="11" opacity="0.45" />
+            <path d="M535,130 L525,275" fill="none" stroke="#2563eb" stroke-width="4" opacity="0.4" />
+            <path d="M555,282 L565,435" fill="none" stroke="#2563eb" stroke-width="4" opacity="0.4" />
+
+            <!-- 고속도로 및 철도 -->
+            <ellipse cx="485" cy="278" rx="165" ry="118" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="7 5" opacity="0.55" />
+            <line x1="505" y1="300" x2="555" y2="575" stroke="#d97706" stroke-width="2.4" opacity="0.65" />
+            <line x1="85" y1="292" x2="430" y2="262" stroke="#38bdf8" stroke-width="1.8" stroke-dasharray="4 4" opacity="0.55" />
+
+            <!-- 권역 표기 -->
+            <text x="28" y="45" fill="#1e40af" font-size="15" font-weight="900" letter-spacing="3">서 해 (YELLOW SEA)</text>
+            <text x="195" y="255" fill="#38bdf8" font-size="13" font-weight="900" opacity="0.7">인천광역시</text>
+            <text x="455" y="272" fill="#93c5fd" font-size="15" font-weight="900" opacity="0.8">서울특별시</text>
+            <text x="330" y="105" fill="#64748b" font-size="13" font-weight="800">경기도 북부</text>
+            <text x="735" y="205" fill="#64748b" font-size="13" font-weight="800">경기도 동부</text>
+            <text x="430" y="535" fill="#64748b" font-size="13" font-weight="800">경기도 남부</text>
+          </svg>
+          <div class="absolute inset-0">${pinsHtml}</div>
+        </div>`;
+    }
+
+    function applyMapTransform(modeKey) {
+      const st = mapViews[modeKey];
+      const stage = document.getElementById(`metro-stage-${modeKey}`);
+      if (stage) {
+        stage.style.transform = `translate(${st.x}px, ${st.y}px) scale(${st.scale})`;
+      }
+    }
+
+    function getTouchDistance(t1, t2) {
+      const dx = t1.clientX - t2.clientX;
+      const dy = t1.clientY - t2.clientY;
+      return Math.hypot(dx, dy);
+    }
+
+    function mountInteractiveMetroMap(viewportId, modeKey, isInitialMode) {
+      const vp = document.getElementById(viewportId);
+      if (!vp) return;
+      vp.innerHTML = buildMetroCartographyHTML(modeKey, isInitialMode);
+      vp.style.cursor = 'grab';
+      applyMapTransform(modeKey);
+
+      const st = mapViews[modeKey];
+
+      // 마우스 드래그 패닝
+      vp.onmousedown = e => {
+        if (e.target.closest('.metro-pin-btn')) return;
+        st.dragging = true;
+        st.startX = e.clientX - st.x;
+        st.startY = e.clientY - st.y;
+        vp.style.cursor = 'grabbing';
+      };
+
+      window.addEventListener('mousemove', e => {
+        if (!st.dragging) return;
+        st.x = Math.max(-850, Math.min(220, e.clientX - st.startX));
+        st.y = Math.max(-540, Math.min(180, e.clientY - st.startY));
+        applyMapTransform(modeKey);
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (st.dragging) {
+          st.dragging = false;
+          vp.style.cursor = 'grab';
+        }
+      });
+
+      // 모바일 1손가락 터치 드래그 + 2손가락 핀치 줌
+      vp.ontouchstart = e => {
+        if (e.touches.length === 2) {
+          st.dragging = false;
+          st.pinchDist = getTouchDistance(e.touches[0], e.touches[1]);
+          st.pinchScale = st.scale;
+          return;
+        }
+        if (e.target.closest('.metro-pin-btn') || e.touches.length !== 1) return;
+        st.dragging = true;
+        st.startX = e.touches[0].clientX - st.x;
+        st.startY = e.touches[0].clientY - st.y;
+      };
+
+      vp.ontouchmove = e => {
+        if (e.touches.length === 2 && st.pinchDist > 0) {
+          e.preventDefault();
+          const curDist = getTouchDistance(e.touches[0], e.touches[1]);
+          const ratio = curDist / st.pinchDist;
+          st.scale = Math.max(0.55, Math.min(2.6, +(st.pinchScale * ratio).toFixed(2)));
+          applyMapTransform(modeKey);
+          return;
+        }
+        if (!st.dragging || e.touches.length !== 1) return;
+        e.preventDefault();
+        st.x = Math.max(-850, Math.min(220, e.touches[0].clientX - st.startX));
+        st.y = Math.max(-540, Math.min(180, e.touches[0].clientY - st.startY));
+        applyMapTransform(modeKey);
+      };
+
+      vp.ontouchend = () => {
+        st.dragging = false;
+        st.pinchDist = 0;
+      };
+
+      // PC 휠 줌
+      vp.onwheel = e => {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 0.18 : -0.18;
+        st.scale = Math.max(0.55, Math.min(2.6, +(st.scale + delta).toFixed(2)));
+        applyMapTransform(modeKey);
+      };
+
+      // 핀 터치/클릭 이벤트
+      vp.querySelectorAll('.metro-pin-btn').forEach(btn => {
+        btn.onclick = () => {
+          const id = btn.getAttribute('data-district-id');
+          if (isInitialMode) {
+            if (btn.getAttribute('data-can-afford') === '1') selectInitialDistrict(id);
+            else showToast(`보증금(${fmtShort(Number(btn.getAttribute('data-dep')))})이 부족합니다.`);
+          } else {
+            selectedMainMapDistrictId = id;
+            mountInteractiveMetroMap('main-metro-viewport', 'main', false);
+            renderMainMapDetail();
+          }
+        };
+      });
+    }
+
+    function adjustMapZoom(modeKey, delta) {
+      const st = mapViews[modeKey];
+      st.scale = Math.max(0.55, Math.min(2.6, +(st.scale + delta).toFixed(2)));
+      applyMapTransform(modeKey);
+    }
+
+    function focusMetroRegion(region) {
+      const st = mapViews.main;
+      const isMobile = window.innerWidth < 640;
+      if (region === 'all') { st.scale = isMobile ? 0.58 : 0.85; st.x = -10; st.y = -10; }
+      else if (region === 'incheon') { st.scale = 1.45; st.x = 10; st.y = -210; }
+      else if (region === 'seoul') { st.scale = 1.75; st.x = isMobile ? -340 : -500; st.y = -220; }
+      else if (region === 'south') { st.scale = 1.5; st.x = isMobile ? -290 : -440; st.y = -390; }
+      else if (region === 'north') { st.scale = 1.35; st.x = isMobile ? -240 : -370; st.y = -30; }
+      applyMapTransform('main');
+    }
+
+    function selectInitialDistrict(id) {
+      selectedInitDistrictId = id;
+      mountInteractiveMetroMap('init-metro-viewport', 'init', true);
+      const d = METRO_DISTRICTS.find(x => x.id === id);
+      const dep = getDistrictCost(d, 'deposit');
+      const rent = getDistrictCost(d, 'rent');
+      document.getElementById('init-district-card').innerHTML = `
+        <div class="space-y-2.5 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold">${d.region} 권역</span>
+            <span class="text-emerald-400 font-bold">입점 가능</span>
+          </div>
+          <h3 class="text-base sm:text-lg font-black text-white">${d.name}</h3>
+          <p class="text-[11px] text-amber-200/85 bg-amber-950/35 border border-amber-800/40 px-2.5 py-1.5 rounded-lg">✨ ${d.trait}</p>
+          <div class="bg-[#1c1714] p-2.5 rounded-xl border border-stone-800 space-y-1">
+            <div class="flex justify-between"><span class="text-stone-400">보증금:</span><strong class="text-amber-300 font-mono-code">${fmtShort(dep)}</strong></div>
+            <div class="flex justify-between"><span class="text-stone-400">월 임대료:</span><strong class="text-rose-400 font-mono-code">${fmtShort(rent)}</strong></div>
+            <div class="flex justify-between"><span class="text-stone-400">매출 배율:</span><strong class="text-emerald-400 font-mono-code">×${d.mult.toFixed(2)}배</strong></div>
+          </div>
+          <p class="text-[11px] text-stone-400">개업 후 남은 운영 자금: <strong class="text-stone-200">${fmt(state.cash - dep)}</strong></p>
+        </div>
+        <button onclick="confirmStartGame('${d.id}')"
+          class="w-full py-3 rounded-xl bg-amber-600 hover:bg-amber-500 active:scale-95 font-black text-sm text-white mt-3 shadow-lg">
+          「${state.cafeName}」 이곳에서 개업하기!
+        </button>`;
+    }
+
+    async function confirmStartGame(districtId) {
+      const d = METRO_DISTRICTS.find(x => x.id === districtId);
+      const dep = getDistrictCost(d, 'deposit');
+      if (state.cash < dep) return;
+
+      state.cash -= dep;
+      state.districtId = districtId;
+      selectedMainMapDistrictId = districtId;
+      state.started = true;
+
+      const regRes = await window.FB_API.registerNewAccount(state);
+      if (regRes && !regRes.ok) {
+        state.cash += dep;
+        state.started = false;
+        showToast(`❌ ${regRes.reason}`);
+        backToStep1();
+        return;
+      }
+
+      await window.FB_API.syncRanking(state, calcNetWorth(), d.name);
+
+      document.getElementById('onboarding-modal').classList.add('hidden');
+      pushSms('수도권 상가중개센터', `${state.nickname} 사장님(ID: ${state.playerId}), ${d.name}점 임대차 계약 완료! 매월 1일(현실 1시간 주기) 월세와 세금이 자동 정산됩니다.`);
+      saveLocal();
+      renderAll();
+      showToast(`🎉 「${state.cafeName}」 ${d.name} 오픈을 축하합니다!`);
+    }
+
+    // =========================================================
+    // 카페 실내 · 창밖 시간대 & 날씨 · 홀 좌석 & 단골
+    // =========================================================
+    function getCurrentDistrict() {
+      return METRO_DISTRICTS.find(d => d.id === state.districtId) || METRO_DISTRICTS[0];
+    }
+
+    function getMaxRegularSlots() {
+      return Math.min(8, 5 + Math.floor(state.extraSize / 2));
+    }
+
+    function getRegularPerkValue(regId, kind) {
+      const found = state.regulars.find(r => r.id === regId);
+      if (!found) return 0;
+      const lv = found.level || 1;
+      if (regId === 'reg_park' && kind === 'discount') return 0.03 * lv;
+      if (regId === 'reg_jieun' && kind === 'rev') return 0.035 * lv;
+      if (regId === 'reg_choi' && kind === 'ingDisc') return 0.05 * lv;
+      if (regId === 'reg_minho' && kind === 'taxDisc') return 0.05 * lv;
+      if (regId === 'reg_sujin' && kind === 'menuMult') return 0.05 * lv;
+      if (regId === 'reg_hana' && kind === 'brewMult') return 0.05 * lv;
+      return 0;
+    }
+
+    function getGlobalMultiplier() {
+      const d = getCurrentDistrict();
+      let mult = d.mult;
+      if (state.activeMenuIdx >= 0 && state.menus[state.activeMenuIdx]) {
+        const m = state.menus[state.activeMenuIdx];
+        let mMult = m.priceMult * (1 + getRegularPerkValue('reg_sujin', 'menuMult'));
+        if (m.ingIds.includes(state.trendingIng)) mMult *= 1.35;
+        mult *= mMult;
+      }
+      mult *= (1 + getRegularPerkValue('reg_jieun', 'rev'));
+      mult *= (1 + state.starPrestige * 0.25);
+      return mult;
+    }
+
+    function getBrewPower() {
+      return Math.round(2500 * getGlobalMultiplier() * (1 + getRegularPerkValue('reg_hana', 'brewMult')));
+    }
+
+    function getRawCps() {
+      let sum = 0;
+      STAFF_TEMPLATES.forEach(t => sum += (state.staff[t.id] || 0) * t.cps);
+      return Math.round(sum * getGlobalMultiplier());
+    }
+
+    function consumeBeanForBrew() {
+      if (state.stock.bean > 0) {
+        state.stock.bean -= 1;
+        return 1.0;
+      }
+      const cost = Math.round(15000 * (1 - getRegularPerkValue('reg_choi', 'ingDisc')));
+      if (state.autoRestock && state.cash >= cost) {
+        state.cash -= cost;
+        state.stock.bean += 100;
+        return 1.0;
+      }
+      return 0.45;
+    }
+
+    function brewEspressoFromMachine(e, isAuto = false) {
+      if (!state.started) return;
+      const earn = Math.round(getBrewPower() * consumeBeanForBrew());
+      state.cash += earn;
+      state.totalEarned += earn;
+
+      if (!isAuto && e) {
+        AudioEngine.playChime('brew');
+        const cx = e.clientX || (e.touches && e.touches[0]?.clientX) || window.innerWidth * 0.25;
+        const cy = e.clientY || (e.touches && e.touches[0]?.clientY) || window.innerHeight * 0.8;
+        const tag = document.createElement('div');
+        tag.className = 'float-income font-mono-code font-black text-amber-300 text-sm';
+        tag.style.left = `${cx}px`;
+        tag.style.top = `${cy - 14}px`;
+        tag.textContent = `+${fmt(earn)}`;
+        document.body.appendChild(tag);
+        setTimeout(() => tag.remove(), 900);
+      }
+      updateHUD();
+    }
+
+    function initFloorTables() {
+      floorCustomers = [
+        { emoji: '🧑', seat: '창가 1번석', bubble: '아메리카노 한 잔요!', tip: 1500, hasBubble: true },
+        { emoji: '👩', seat: '원목 2번석', bubble: '창밖 풍경이 좋아요 ☕', tip: 2000, hasBubble: false },
+        { emoji: '🧔', seat: '바 테이블', bubble: '빈 쟁반 치워주세요', tip: 1800, hasBubble: true },
+        { emoji: '👧', seat: '소파 4번석', bubble: '디저트 추가 주문이요!', tip: 2500, hasBubble: false }
+      ];
+      renderFloorTables();
+    }
+
+    function clickTableBubble(idx, e) {
+      const item = floorCustomers[idx];
+      if (!item || !item.hasBubble) return;
+      const bonus = Math.round(item.tip * getGlobalMultiplier());
+      state.cash += bonus;
+      state.totalEarned += bonus;
+      item.hasBubble = false;
+
+      if (state.regulars.length > 0) {
+        const target = state.regulars[Math.floor(Math.random() * state.regulars.length)];
+        target.exp = (target.exp || 0) + 1;
+        if (target.exp >= target.level * 5 && target.level < 5) {
+          target.level += 1;
+          target.exp = 0;
+          const meta = REGULAR_POOL.find(x => x.id === target.id);
+          showToast(`💖 [${meta.name}] 단골 친밀도 Lv.${target.level} 달성!`);
+        }
+      }
+
+      AudioEngine.playChime('brew');
+      const cx = e.clientX || window.innerWidth * 0.5;
+      const cy = e.clientY || window.innerHeight * 0.6;
+      const tag = document.createElement('div');
+      tag.className = 'float-income font-mono-code font-bold text-pink-300 text-xs';
+      tag.style.left = `${cx}px`;
+      tag.style.top = `${cy - 10}px`;
+      tag.textContent = `감사 팁 +${fmt(bonus)}`;
+      document.body.appendChild(tag);
+      setTimeout(() => tag.remove(), 900);
+
+      renderFloorTables();
+      updateHUD();
+    }
+
+    function renderFloorTables() {
+      const area = document.getElementById('cafe-tables-area');
+      if (!area) return;
+      area.innerHTML = floorCustomers.map((c, idx) => `
+        <div onclick="clickTableBubble(${idx}, event)"
+          class="bg-[#16100d]/90 border ${c.hasBubble ? 'border-amber-500/75 cursor-pointer active:scale-95 hover:bg-[#221914]' : 'border-stone-800/80'} rounded-xl sm:rounded-2xl p-1.5 sm:p-2 flex items-center gap-1.5 sm:gap-2 transition">
+          <div class="text-lg sm:text-xl guest-bob shrink-0">${c.emoji}</div>
+          <div class="min-w-0 flex-1">
+            <div class="text-[9px] sm:text-[10px] text-stone-400">${c.seat}</div>
+            ${c.hasBubble
+              ? `<div class="mt-0.5 px-1.5 py-0.5 rounded-md bg-amber-500/20 border border-amber-400/40 text-[10px] font-bold text-amber-200 truncate">💬 ${c.bubble}</div>`
+              : `<div class="mt-0.5 text-[10px] text-stone-500 truncate">여유롭게 휴식 중...</div>`}
+          </div>
+        </div>`).join('');
+    }
+
+    function spawnRegularCandidate() {
+      if (!state.started || pendingCandidateId) return;
+      const existing = state.regulars.map(r => r.id);
+      const pool = REGULAR_POOL.filter(r => !existing.includes(r.id));
+      if (pool.length === 0) return;
+
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+      pendingCandidateId = pick.id;
+      AudioEngine.playChime('door');
+
+      const banner = document.getElementById('regular-visitor-banner');
+      document.getElementById('visitor-banner-text').textContent = `🔔 [${pick.name}] 방문!`;
+      banner.classList.remove('hidden');
+    }
+
+    function openRegularCandidateModal() {
+      const cand = REGULAR_POOL.find(r => r.id === pendingCandidateId);
+      if (!cand) return;
+      const maxSlots = getMaxRegularSlots();
+      const isFull = state.regulars.length >= maxSlots;
+
+      document.getElementById('candidate-card-body').innerHTML = `
+        <div class="text-center space-y-2">
+          <div class="text-5xl">${cand.icon}</div>
+          <span class="px-2.5 py-0.5 rounded-full bg-pink-500/20 text-pink-300 text-[11px] font-bold">${cand.job}</span>
+          <h3 class="text-xl font-black text-white">${cand.name}</h3>
+          <p class="text-xs text-stone-300 leading-relaxed">${cand.intro}</p>
+        </div>
+
+        <div class="mt-4 bg-[#13100e] border border-stone-800 rounded-2xl p-3.5 text-xs space-y-1.5">
+          <div class="flex justify-between"><span class="text-stone-400">좋아하는 재료:</span><strong class="text-amber-300">${cand.favLabel}</strong></div>
+          <div class="text-pink-300 font-bold pt-1">✨ 고유 단골 효과: ${cand.perkTitle}</div>
+          <p class="text-[11px] text-stone-400">${cand.perkDesc}</p>
+        </div>
+
+        ${isFull ? `<p class="text-[11px] text-rose-400 mt-3 text-center">⚠️ 찐단골 슬롯(${maxSlots}명)이 가득 찼습니다!</p>` : ''}
+
+        <div class="grid grid-cols-2 gap-2 mt-4 text-xs font-bold">
+          <button onclick="decideRegularCandidate(false)" class="py-3 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300">정중히 배웅</button>
+          <button onclick="decideRegularCandidate(true)" ${isFull ? 'disabled' : ''}
+            class="py-3 rounded-xl bg-pink-600 hover:bg-pink-500 disabled:bg-stone-800 disabled:text-stone-500 text-white">
+            단골 맞이하기 💖
+          </button>
+        </div>`;
+      openModal('modal-candidate');
+    }
+
+    function decideRegularCandidate(accept) {
+      const cand = REGULAR_POOL.find(r => r.id === pendingCandidateId);
+      closeModal('modal-candidate');
+      document.getElementById('regular-visitor-banner').classList.add('hidden');
+      pendingCandidateId = null;
+
+      if (accept && cand && state.regulars.length < getMaxRegularSlots()) {
+        state.regulars.push({ id: cand.id, level: 1, exp: 0 });
+        pushSms(cand.name, `사장님, 오늘 커피 정말 맛있었습니다! 앞으로 자주 들를게요 😊`);
+        showToast(`💖 [${cand.name}] 님이 우리 카페의 찐단골이 되었습니다!`);
+        saveLocal();
+        updateHUD();
+      }
+    }
+
+    function removeRegular(regId) {
+      state.regulars = state.regulars.filter(r => r.id !== regId);
+      renderPosRegulars();
+      updateHUD();
+    }
+
+    // =========================================================
+    // 리얼 스마트폰 UI (홈 · 메시지 · 카페그램 SNS · 주식 · 코인)
+    // =========================================================
+    function openSmartphone() {
+      openModal('modal-phone');
+      backToPhoneHome();
+      const deskPhone = document.getElementById('desk-phone-obj');
+      if (deskPhone) deskPhone.classList.remove('phone-alert-buzz');
+    }
+
+    function backToPhoneHome() {
+      document.getElementById('phone-view-app').classList.add('hidden');
+      document.getElementById('phone-view-home').classList.remove('hidden');
+      updatePhoneBadges();
+    }
+
+    function updatePhoneBadges() {
+      const totalAlerts = state.unreadSms + state.unreadSns;
+      const deskPill = document.getElementById('phone-badge-pill');
+      const smsBadge = document.getElementById('app-badge-sms');
+      const snsBadge = document.getElementById('app-badge-sns');
+
+      if (totalAlerts > 0) {
+        deskPill.textContent = totalAlerts;
+        deskPill.classList.remove('hidden');
+      } else {
+        deskPill.classList.add('hidden');
+      }
+
+      if (state.unreadSms > 0) {
+        smsBadge.textContent = state.unreadSms;
+        smsBadge.classList.remove('hidden');
+      } else {
+        smsBadge.classList.add('hidden');
+      }
+
+      if (state.unreadSns > 0) {
+        snsBadge.textContent = state.unreadSns;
+        snsBadge.classList.remove('hidden');
+      } else {
+        snsBadge.classList.add('hidden');
+      }
+    }
+
+    function openPhoneApp(app) {
+      document.getElementById('phone-view-home').classList.add('hidden');
+      document.getElementById('phone-view-app').classList.remove('hidden');
+      const titleEl = document.getElementById('phone-app-title');
+      if (app === 'sms') {
+        titleEl.textContent = '💬 메시지';
+        state.unreadSms = 0;
+        updatePhoneBadges();
+        renderPhoneSmsApp();
+      } else if (app === 'sns') {
+        titleEl.textContent = '📸 카페그램 (SNS)';
+        state.unreadSns = 0;
+        updatePhoneBadges();
+        renderPhoneSnsApp();
+      } else if (app === 'stock') {
+        titleEl.textContent = '📈 한국투자증권';
+        renderPhoneStockApp();
+      } else if (app === 'coin') {
+        titleEl.textContent = '🪙 업비트코인 (실시간)';
+        renderPhoneCoinApp();
+      }
+    }
+
+    function pushSms(sender, text, actionType = null) {
+      state.smsList.unshift({
+        id: Date.now() + Math.random(),
+        sender,
+        text,
+        time: `${Math.floor((state.monthCount - 1) / 12) + 1}년차 ${((state.monthCount - 1) % 12) + 1}월`,
+        actionType,
+        handled: false
+      });
+      state.unreadSms += 1;
+      updatePhoneBadges();
+      const deskPhone = document.getElementById('desk-phone-obj');
+      if (deskPhone) deskPhone.classList.add('phone-alert-buzz');
+    }
+
+    function renderPhoneSmsApp() {
+      const box = document.getElementById('phone-app-scroll');
+      if (state.smsList.length === 0) {
+        box.innerHTML = `<div class="text-center py-12 text-xs text-stone-500">받은 메시지가 없습니다.</div>`;
+        return;
+      }
+      box.innerHTML = state.smsList.map(m => `
+        <div class="flex flex-col gap-1">
+          <div class="flex items-center justify-between px-1 text-[10px] text-stone-400">
+            <strong class="text-amber-300">${m.sender}</strong>
+            <span>${m.time}</span>
+          </div>
+          <div class="bg-[#231d19] border border-stone-800 rounded-2xl rounded-tl-sm p-3 text-xs text-stone-100 leading-relaxed shadow">
+            ${m.text}
+            ${m.actionType === 'franchise' && !m.handled ? `
+              <div class="flex gap-1.5 mt-2.5">
+                <button onclick="respondFranchise(${m.id}, true)" class="flex-1 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 font-bold text-white">수락 (계약 선택)</button>
+                <button onclick="respondFranchise(${m.id}, false)" class="flex-1 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300">거절 (6개월)</button>
+              </div>` : ''}
+            ${m.actionType === 'franchise_apply' && !m.handled ? `
+              <button onclick="approveFranchiseApply(${m.id})" class="mt-2.5 w-full py-2 rounded-xl bg-purple-600 hover:bg-purple-500 font-bold text-white">
+                가맹 승인하기 (+1,500만 원 입금)
+              </button>` : ''}
+          </div>
+        </div>`).join('');
+    }
+
+    function toggleSnsLike(postId) {
+      const p = state.snsPosts.find(x => x.id === postId);
+      if (!p) return;
+      p.liked = !p.liked;
+      p.likes += p.liked ? 1 : -1;
+      renderPhoneSnsApp();
+    }
+
+    function renderPhoneSnsApp() {
+      const trendIng = INGREDIENTS.find(x => x.id === state.trendingIng);
+      const box = document.getElementById('phone-app-scroll');
+      box.innerHTML = `
+        <div class="rounded-2xl bg-gradient-to-r from-pink-950/70 to-amber-950/60 border border-pink-500/40 p-3 text-xs">
+          <div class="text-[10px] font-bold text-pink-300">🔥 지금 수도권 카페그램 실시간 인기 해시태그</div>
+          <div class="text-sm font-black text-white mt-0.5">${trendIng.icon} #${trendIng.name.replace(/\s+/g, '')} (+35% 매출 보너스)</div>
+        </div>
+        ${state.snsPosts.map(p => `
+          <div class="bg-[#1b1613] border border-stone-800 rounded-2xl p-3 text-xs space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-amber-500 to-pink-500 flex items-center justify-center text-xs font-black text-white">☕</div>
+                <div>
+                  <div class="font-bold text-stone-100">${p.author}</div>
+                  <div class="text-[10px] text-amber-300">📍 ${p.district}</div>
+                </div>
+              </div>
+              <span class="text-[10px] text-stone-500">${p.time}</span>
+            </div>
+            <p class="text-stone-200 leading-relaxed">${p.text}</p>
+            <div class="text-[11px] text-sky-400 font-semibold">${p.tags}</div>
+            <div class="pt-1 border-t border-stone-800/80 flex items-center justify-between text-[11px]">
+              <button onclick="toggleSnsLike(${p.id})" class="flex items-center gap-1 py-1 ${p.liked ? 'text-rose-400 font-bold' : 'text-stone-400'}">
+                <span>${p.liked ? '❤️' : '🤍'}</span> 좋아요 ${p.likes}개
+              </button>
+              <span class="text-stone-500">${p.badge}</span>
+            </div>
+          </div>`).join('')}`;
+    }
+
+    function renderPhoneStockApp() {
+      const box = document.getElementById('phone-app-scroll');
+      box.innerHTML = `
+        <div class="text-[11px] text-stone-300 bg-[#1c1714] p-2.5 rounded-xl border border-stone-800">
+          3초마다 시세 갱신 · 매월 1일 보유 평가액의 <strong class="text-emerald-400">2.5% 배당금</strong> 지급
+        </div>
+        ${state.stocks.map((s, i) => {
+          const pct = (((s.price - s.prev) / s.prev) * 100).toFixed(2);
+          const up = s.price >= s.prev;
+          return `
+            <div class="bg-[#1c1714] border border-stone-800 rounded-2xl p-3 text-xs space-y-2">
+              <div class="flex justify-between">
+                <strong>${s.name}</strong>
+                <span class="${up ? 'text-rose-400' : 'text-sky-400'} font-mono-code font-bold">${fmt(s.price)} (${up ? '+' : ''}${pct}%)</span>
+              </div>
+              <div class="text-stone-400">보유: <strong class="text-white">${s.shares}주</strong> (${fmt(s.shares * s.price)})</div>
+              <div class="grid grid-cols-4 gap-1">
+                <button onclick="tradeStock(${i}, 1)" class="py-2 rounded-lg bg-rose-700/80 active:scale-95 font-bold">1주</button>
+                <button onclick="tradeStock(${i}, 10)" class="py-2 rounded-lg bg-rose-700/80 active:scale-95 font-bold">10주</button>
+                <button onclick="tradeStock(${i}, -1)" class="py-2 rounded-lg bg-sky-800/80 active:scale-95 font-bold">1주매도</button>
+                <button onclick="tradeStock(${i}, -999999)" class="py-2 rounded-lg bg-sky-800/80 active:scale-95 font-bold">전량</button>
+              </div>
+            </div>`;
+        }).join('')}`;
+    }
+
+    function tradeStock(idx, delta) {
+      const s = state.stocks[idx];
+      if (delta > 0) {
+        const cost = s.price * delta;
+        if (state.cash < cost) return;
+        state.cash -= cost;
+        s.shares += delta;
+      } else {
+        const q = Math.min(s.shares, Math.abs(delta));
+        if (q <= 0) return;
+        s.shares -= q;
+        state.cash += q * s.price;
+      }
+      renderPhoneStockApp();
+      updateHUD();
+    }
+
+    function renderPhoneCoinApp() {
+      const box = document.getElementById('phone-app-scroll');
+      box.innerHTML = `
+        <div class="text-[11px] text-indigo-200 bg-indigo-950/50 border border-indigo-800/50 p-2.5 rounded-xl">
+          0.8초 초고변동 시세 · 소수점 금액 매수 & 스테이킹(월 6% 이자)
+        </div>
+        ${state.coins.map((c, i) => {
+          const pct = (((c.price - c.prev) / c.prev) * 100).toFixed(2);
+          const up = c.price >= c.prev;
+          return `
+            <div class="bg-[#1c1714] border border-indigo-900/50 rounded-2xl p-3 text-xs space-y-2">
+              <div class="flex justify-between">
+                <strong class="text-indigo-200">${c.name}</strong>
+                <span class="${up ? 'text-rose-400' : 'text-sky-400'} font-mono-code font-bold">${fmt(c.price)} (${up ? '+' : ''}${pct}%)</span>
+              </div>
+              <div class="flex justify-between text-stone-400">
+                <span>평가: <strong class="text-white">${fmt(c.qty * c.price)}</strong></span>
+                <span>스테이킹: <strong class="text-emerald-400">${fmt(c.staked * c.price)}</strong></span>
+              </div>
+              <div class="grid grid-cols-4 gap-1">
+                <button onclick="buyCoin(${i}, 100000)" class="py-2 rounded-lg bg-indigo-700 active:scale-95 font-bold">10만</button>
+                <button onclick="buyCoin(${i}, 1000000)" class="py-2 rounded-lg bg-indigo-700 active:scale-95 font-bold">100만</button>
+                <button onclick="stakeCoin(${i})" class="py-2 rounded-lg bg-emerald-800 active:scale-95 font-bold">예치</button>
+                <button onclick="sellCoinAll(${i})" class="py-2 rounded-lg bg-stone-700 active:scale-95 font-bold">매도</button>
+              </div>
+            </div>`;
+        }).join('')}`;
+    }
+
+    function buyCoin(idx, krw) {
+      if (state.cash < krw) return;
+      const c = state.coins[idx];
+      state.cash -= krw;
+      c.qty += krw / c.price;
+      renderPhoneCoinApp();
+      updateHUD();
+    }
+
+    function stakeCoin(idx) {
+      const c = state.coins[idx];
+      if (c.qty <= 0) return;
+      c.staked += c.qty;
+      c.qty = 0;
+      renderPhoneCoinApp();
+    }
+
+    function sellCoinAll(idx) {
+      const c = state.coins[idx];
+      if (c.qty <= 0) return;
+      state.cash += Math.round(c.qty * c.price);
+      c.qty = 0;
+      renderPhoneCoinApp();
+      updateHUD();
+    }
+
+    function respondFranchise(id, accept) {
+      const m = state.smsList.find(x => x.id === id);
+      if (m) m.handled = true;
+      if (!accept) {
+        state.franchiseCooldownMonths = 6;
+        state.franchiseOffered = false;
+        pushSms('대기업 F&B 제휴팀', '사장님의 독립 경영 의지를 존중합니다. 6개월 뒤에 다시 제안드리겠습니다.');
+        renderPhoneSmsApp();
+      } else {
+        closeModal('modal-phone');
+        openModal('modal-franchise');
+      }
+    }
+
+    function selectFranchiseRoute(route) {
+      closeModal('modal-franchise');
+      if (route === 'hq') {
+        state.franchiseMode = 'hq';
+        state.franchiseStores = 1;
+        pushSms('가맹사업본부', `「${state.cafeName}」 가맹 본사(HQ)가 공식 출범했습니다!`);
+      } else if (route === 'exit') {
+        const payout = Math.round(calcNetWorth() * 0.6 + 80000000);
+        state.cash += payout;
+        state.starPrestige += 1;
+        state.districtId = 'ic_gaehang';
+        state.extraSize = 0;
+        state.staff = { parttimer: 0, machine: 0, barista: 0, roaster: 0, baker: 0, manager: 0 };
+        state.branches = {};
+        state.buildings = {};
+        state.franchiseMode = null;
+        state.franchiseOffered = false;
+        pushSms('M&A 법률자문팀', `매각 대금 ${fmtShort(payout)} 입금 완료! ⭐ 영구 매출 +25% 보너스와 함께 2회차 경영을 시작합니다.`);
+      } else if (route === 'license') {
+        state.franchiseMode = 'license';
+        pushSms('F&B 라이선스팀', '레시피 제휴 완료! 개발한 시그니처 메뉴당 매월 180만 원 로열티가 지급됩니다.');
+      }
+      saveLocal();
+      renderAll();
+    }
+
+    function approveFranchiseApply(id) {
+      const m = state.smsList.find(x => x.id === id);
+      if (m) m.handled = true;
+      state.franchiseStores += 1;
+      state.cash += 15000000;
+      AudioEngine.playChime('brew');
+      renderPhoneSmsApp();
+      updateHUD();
+    }
+
+    // =========================================================
+    // 포스기 POS · 지도 상세 · 장부 · 랭킹
+    // =========================================================
+    function switchPosTab(tab) {
+      ['staff', 'menu', 'regulars'].forEach(t => {
+        document.getElementById(`pos-body-${t}`).classList.toggle('hidden', t !== tab);
+        document.getElementById(`pos-tab-${t}`).className =
+          t === tab ? 'flex-1 py-2 rounded-lg bg-amber-600 text-white' : 'flex-1 py-2 rounded-lg text-stone-400';
+      });
+      if (tab === 'staff') renderPosStaff();
+      if (tab === 'menu') renderPosMenu();
+      if (tab === 'regulars') renderPosRegulars();
+    }
+
+    function getMaxStaffCap() {
+      return getCurrentDistrict().cap + state.extraSize * 6;
+    }
+
+    function getTotalStaff() {
+      return Object.values(state.staff).reduce((a, b) => a + b, 0);
+    }
+
+    function buyStaffItem(id) {
+      const t = STAFF_TEMPLATES.find(x => x.id === id);
+      const cnt = state.staff[id] || 0;
+      const cost = Math.round(t.baseCost * Math.pow(1.18, cnt));
+      if (getTotalStaff() >= getMaxStaffCap()) {
+        showToast('⚠️ 매장 수용 한도 초과! [수도권 지도]에서 평수를 확장하거나 이사하세요.');
+        return;
+      }
+      if (state.cash < cost) return;
+      state.cash -= cost;
+      state.staff[id] = cnt + 1;
+      AudioEngine.playChime('brew');
+      renderPosStaff();
+      updateHUD();
+    }
+
+    function upgradeMachineSpeed() {
+      const cost = Math.round(300000 * Math.pow(1.6, state.autoBrewLevel));
+      if (state.cash < cost) return;
+      state.cash -= cost;
+      state.autoBrewLevel += 1;
+      state.autoBrewInterval = Math.max(0.55, +(2.5 * Math.pow(0.88, state.autoBrewLevel)).toFixed(2));
+      AudioEngine.playChime('brew');
+      renderPosStaff();
+      updateHUD();
+    }
+
+    function renderPosStaff() {
+      const cap = getMaxStaffCap();
+      const cur = getTotalStaff();
+      const upCost = Math.round(300000 * Math.pow(1.6, state.autoBrewLevel));
+      document.getElementById('pos-body-staff').innerHTML = `
+        <div class="flex flex-wrap justify-between items-center gap-2 bg-[#130f0c] p-3 rounded-2xl border border-stone-800 text-xs">
+          <span>매장 수용 한도: <strong class="${cur >= cap ? 'text-rose-400' : 'text-amber-300'}">${cur} / ${cap}명</strong></span>
+          <button onclick="upgradeMachineSpeed()" ${state.cash < upCost ? 'disabled' : ''}
+            class="px-3 py-2 rounded-xl bg-amber-700/40 hover:bg-amber-600/50 disabled:opacity-40 border border-amber-500/40 font-bold text-amber-200">
+            ⚡ 자동추출 단축 (${state.autoBrewInterval}초 → ${fmtShort(upCost)})
+          </button>
+        </div>
+        ${STAFF_TEMPLATES.map(t => {
+          const cnt = state.staff[t.id] || 0;
+          const cost = Math.round(t.baseCost * Math.pow(1.18, cnt));
+          const ok = state.cash >= cost && cur < cap;
+          return `
+            <div class="bg-[#130f0c] border border-stone-800 rounded-2xl p-3 flex items-center justify-between gap-2.5 text-xs">
+              <div class="min-w-0">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="text-base">${t.icon}</span>
+                  <strong class="text-sm text-stone-100">${t.name}</strong>
+                  <span class="px-2 py-0.5 rounded bg-stone-800 text-amber-300 font-bold">${cnt}</span>
+                </div>
+                <p class="text-[11px] text-stone-400 mt-0.5">${t.desc} · +${fmt(t.cps)}/초 (월급 ${fmtShort(t.wage)})</p>
+              </div>
+              <button onclick="buyStaffItem('${t.id}')" ${ok ? '' : 'disabled'}
+                class="px-3.5 py-2.5 rounded-xl font-bold shrink-0 ${ok ? 'bg-amber-600 active:scale-95 text-white' : 'bg-stone-800 text-stone-500'}">
+                ${fmtShort(cost)}
+              </button>
+            </div>`;
+        }).join('')}`;
+    }
+
+    let pickedRecipeIngs = [];
+    function toggleRecipeIng(id) {
+      if (pickedRecipeIngs.includes(id)) pickedRecipeIngs = pickedRecipeIngs.filter(x => x !== id);
+      else if (pickedRecipeIngs.length < 3) pickedRecipeIngs.push(id);
+      renderPosMenu();
+    }
+
+    function launchCustomMenu() {
+      const name = (document.getElementById('pos-menu-name')?.value || '').trim();
+      if (name.length < 2 || pickedRecipeIngs.length < 2) {
+        showToast('메뉴 이름(2자 이상)과 재료 2~3가지를 선택하세요!');
+        return;
+      }
+      const cost = 250000 * (state.menus.length + 1);
+      if (state.cash < cost) {
+        showToast('메뉴 개발 자금이 부족합니다.');
+        return;
+      }
+      state.cash -= cost;
+      const mult = +(1.3 + pickedRecipeIngs.length * 0.22 + state.menus.length * 0.15).toFixed(2);
+      state.menus.push({ name, ingIds: [...pickedRecipeIngs], priceMult: mult });
+      state.activeMenuIdx = state.menus.length - 1;
+      pickedRecipeIngs = [];
+      AudioEngine.playChime('brew');
+      showToast(`✨ 시그니처 메뉴 [${name}] 출시 완료!`);
+      renderPosMenu();
+      updateHUD();
+    }
+
+    function buyIngredientStock(id, qty) {
+      const ing = INGREDIENTS.find(x => x.id === id);
+      const disc = 1 - getRegularPerkValue('reg_choi', 'ingDisc');
+      const base = qty === 500 ? ing.price100 * 5 * 0.85 : ing.price100;
+      const cost = Math.round(base * disc);
+      if (state.cash < cost) return;
+      state.cash -= cost;
+      state.stock[id] = (state.stock[id] || 0) + qty;
+      AudioEngine.playChime('brew');
+      renderPosMenu();
+      updateHUD();
+    }
+
+    function renderPosMenu() {
+      const devCost = 250000 * (state.menus.length + 1);
+      const trendIng = INGREDIENTS.find(x => x.id === state.trendingIng);
+      document.getElementById('pos-body-menu').innerHTML = `
+        <div class="bg-[#130f0c] border border-amber-700/40 rounded-2xl p-3 space-y-2 text-xs">
+          <div class="flex flex-wrap justify-between items-center gap-1">
+            <strong class="text-amber-300">🧪 시그니처 메뉴 개발 (유행: ${trendIng.icon} ${trendIng.name})</strong>
+            <span class="text-stone-400">개발비 <strong class="text-amber-300">${fmtShort(devCost)}</strong></span>
+          </div>
+          <div class="flex flex-wrap gap-1.5">
+            ${INGREDIENTS.map(ing => {
+              const active = pickedRecipeIngs.includes(ing.id);
+              return `<button onclick="toggleRecipeIng('${ing.id}')"
+                class="px-2.5 py-1.5 rounded-lg border ${active ? 'bg-amber-600 border-amber-400 text-white font-bold' : 'bg-stone-900 border-stone-700 text-stone-300'}">
+                ${ing.icon} ${ing.name}
+              </button>`;
+            }).join('')}
+          </div>
+          <div class="flex gap-2">
+            <input id="pos-menu-name" type="text" maxlength="14" placeholder="예: 피스타치오 크림라떼"
+              class="flex-1 min-w-0 px-3 py-2 rounded-xl bg-stone-900 border border-stone-700" />
+            <button onclick="launchCustomMenu()" class="px-4 py-2 rounded-xl bg-emerald-600 active:scale-95 font-bold text-white shrink-0">출시</button>
+          </div>
+          ${state.menus.length > 0 ? `
+            <div class="pt-2 border-t border-stone-800 flex flex-wrap gap-1.5">
+              ${state.menus.map((m, idx) => `
+                <button onclick="state.activeMenuIdx=${idx}; renderPosMenu(); updateHUD();"
+                  class="px-2.5 py-1 rounded-lg border ${state.activeMenuIdx === idx ? 'bg-amber-500/20 border-amber-400 text-amber-200 font-bold' : 'bg-stone-900 border-stone-800 text-stone-400'}">
+                  ⭐ ${m.name} (×${m.priceMult}배)
+                </button>`).join('')}
+            </div>` : ''}
+        </div>
+
+        <div class="space-y-2 text-xs">
+          <div class="flex justify-between items-center">
+            <span class="font-bold text-stone-200">📦 원재료 도매 사입</span>
+            <label class="flex items-center gap-1.5 text-amber-300 cursor-pointer">
+              <input type="checkbox" ${state.autoRestock ? 'checked' : ''} onchange="state.autoRestock=this.checked" />
+              원두 자동 발주
+            </label>
+          </div>
+          ${INGREDIENTS.map(ing => {
+            const disc = 1 - getRegularPerkValue('reg_choi', 'ingDisc');
+            const c100 = Math.round(ing.price100 * disc);
+            return `
+              <div class="bg-[#130f0c] border border-stone-800 rounded-xl p-2.5 flex flex-wrap justify-between items-center gap-2">
+                <div>
+                  <span>${ing.icon} <strong>${ing.name}</strong></span>
+                  <span class="ml-1.5 text-amber-300 font-bold">재고 ${state.stock[ing.id] || 0}</span>
+                </div>
+                <div class="flex gap-1.5">
+                  <button onclick="buyIngredientStock('${ing.id}', 100)" class="px-2.5 py-1.5 rounded bg-stone-800 active:scale-95">100개 (${fmtShort(c100)})</button>
+                  <button onclick="buyIngredientStock('${ing.id}', 500)" class="px-2.5 py-1.5 rounded bg-amber-700/40 active:scale-95 text-amber-200 font-bold">500개 할인</button>
+                </div>
+              </div>`;
+          }).join('')}
+        </div>`;
+    }
+
+    function renderPosRegulars() {
+      const maxSlots = getMaxRegularSlots();
+      const body = document.getElementById('pos-body-regulars');
+      if (state.regulars.length === 0) {
+        body.innerHTML = `<div class="text-center py-10 text-xs text-stone-400">아직 등록된 찐단골이 없습니다.<br/>영업을 이어가면 개성 있는 손님들이 찾아와 단골 제안을 건넵니다!</div>`;
+        return;
+      }
+      body.innerHTML = `
+        <div class="text-xs text-stone-400">등록된 찐단골: <strong class="text-pink-300">${state.regulars.length} / ${maxSlots}명</strong></div>
+        ${state.regulars.map(r => {
+          const meta = REGULAR_POOL.find(x => x.id === r.id);
+          return `
+            <div class="bg-[#130f0c] border border-pink-900/40 rounded-2xl p-3.5 text-xs flex justify-between items-start gap-3">
+              <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-xl">${meta.icon}</span>
+                  <strong class="text-sm text-pink-200">${meta.name}</strong>
+                  <span class="px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 font-bold">Lv.${r.level}</span>
+                </div>
+                <p class="text-stone-400 mt-1">${meta.perkDesc}</p>
+              </div>
+              <button onclick="removeRegular('${r.id}')" class="px-2.5 py-1.5 rounded-lg bg-stone-800 text-[11px] text-stone-400 shrink-0">작별</button>
+            </div>`;
+        }).join('')}`;
+    }
+
+    function renderMainMapDetail() {
+      const d = METRO_DISTRICTS.find(x => x.id === selectedMainMapDistrictId) || getCurrentDistrict();
+      const isHere = d.id === state.districtId;
+      const dep = getDistrictCost(d, 'deposit');
+      const rent = getDistrictCost(d, 'rent');
+      const bPrice = getDistrictCost(d, 'building');
+      const expandCost = Math.round(dep * 0.45 * Math.pow(1.4, state.extraSize));
+      const branchCost = Math.round(dep * 1.3);
+      const branchCnt = state.branches[d.id] || 0;
+      const ownBldg = !!state.buildings[d.id];
+      const modPct = Math.round(((state.districtMods[d.id] || 1) - 1) * 100);
+
+      document.getElementById('main-district-detail').innerHTML = `
+        <div class="space-y-2 text-xs">
+          <div class="flex justify-between items-center">
+            <span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold">${d.region} 권역</span>
+            <span class="${modPct > 0 ? 'text-rose-400' : modPct < 0 ? 'text-blue-400' : 'text-stone-400'} font-bold">
+              시세 ${modPct > 0 ? `▲ +${modPct}%` : modPct < 0 ? `▼ ${modPct}%` : '보합'}
+            </span>
+          </div>
+          <h3 class="text-base sm:text-lg font-black text-white">${d.name} ${ownBldg ? '🏢' : ''}</h3>
+          <p class="text-[11px] text-amber-200/85 bg-amber-950/35 border border-amber-800/40 px-2.5 py-1 rounded-lg">✨ ${d.trait}</p>
+
+          <div class="bg-[#1c1714] p-2.5 rounded-xl border border-stone-800 space-y-1">
+            <div class="flex justify-between"><span class="text-stone-400">보증금:</span><strong class="font-mono-code">${fmtShort(dep)}</strong></div>
+            <div class="flex justify-between"><span class="text-stone-400">월 임대료:</span><strong class="text-rose-400 font-mono-code">${ownBldg ? '0원 (건물주)' : fmtShort(rent)}</strong></div>
+            <div class="flex justify-between"><span class="text-stone-400">매출 배율 / 지점:</span><strong class="text-emerald-400 font-mono-code">×${d.mult.toFixed(2)}배 · ${branchCnt}개점</strong></div>
+            <div class="flex justify-between"><span class="text-stone-400">건물 매입가:</span><strong class="text-amber-300 font-mono-code">${fmtShort(bPrice)}</strong></div>
+          </div>
+
+          <div class="space-y-1.5 pt-1">
+            ${isHere ? `
+              <button onclick="doExpandStore(${expandCost})" class="w-full py-2.5 rounded-xl bg-emerald-700 active:scale-95 font-bold text-white">
+                📐 현재 가게 평수 확장 (+6명 / ${fmtShort(expandCost)})
+              </button>` : `
+              <button onclick="doMoveHQ('${d.id}')" class="w-full py-2.5 rounded-xl bg-amber-600 active:scale-95 font-bold text-white">
+                🚚 이 상권으로 본점 이사하기 (${fmtShort(dep)})
+              </button>`}
+
+            <button onclick="doBuyBranch('${d.id}')" class="w-full py-2.5 rounded-xl bg-stone-800 active:scale-95 font-bold text-stone-200">
+              🏪 주변 카페 인수 (월 +${fmtShort(rent * 1.4)} / ${fmtShort(branchCost)})
+            </button>
+
+            ${!ownBldg ? `
+              <button onclick="doBuyBuilding('${d.id}')" class="w-full py-2.5 rounded-xl bg-purple-800/65 active:scale-95 border border-purple-500/40 font-bold text-purple-200">
+                🏢 건물 통매입 (월세 0원 + 임대수익 / ${fmtShort(bPrice)})
+              </button>` : ''}
+          </div>
+        </div>`;
+    }
+
+    function doMoveHQ(id) {
+      const d = METRO_DISTRICTS.find(x => x.id === id);
+      const dep = getDistrictCost(d, 'deposit');
+      if (state.cash < dep) return showToast('보증금이 부족합니다.');
+      state.cash -= dep;
+      state.districtId = id;
+      state.extraSize = 0;
+      AudioEngine.playChime('brew');
+      showToast(`🚚 [${d.name}] 상권으로 본점을 이전했습니다!`);
+      saveAllProgress(false);
+      renderAll();
+      mountInteractiveMetroMap('main-metro-viewport', 'main', false);
+      renderMainMapDetail();
+    }
+
+    function doExpandStore(cost) {
+      if (state.cash < cost) return showToast('확장 자금이 부족합니다.');
+      state.cash -= cost;
+      state.extraSize += 1;
+      AudioEngine.playChime('brew');
+      showToast(`📐 가게 평수가 확장되었습니다! (최대 수용 ${getMaxStaffCap()}명)`);
+      saveAllProgress(false);
+      renderAll();
+      renderMainMapDetail();
+    }
+
+    function doBuyBranch(id) {
+      const d = METRO_DISTRICTS.find(x => x.id === id);
+      const cost = Math.round(getDistrictCost(d, 'deposit') * 1.3);
+      if (state.cash < cost) return showToast('가게 인수 자금이 부족합니다.');
+      state.cash -= cost;
+      state.branches[id] = (state.branches[id] || 0) + 1;
+      AudioEngine.playChime('brew');
+      showToast(`🏪 [${d.name}] 신규 직영점을 인수했습니다!`);
+      saveAllProgress(false);
+      renderAll();
+      renderMainMapDetail();
+    }
+
+    function doBuyBuilding(id) {
+      const d = METRO_DISTRICTS.find(x => x.id === id);
+      const cost = getDistrictCost(d, 'building');
+      if (state.cash < cost) return showToast('건물 매입 자금이 부족합니다.');
+      state.cash -= cost;
+      state.buildings[id] = true;
+      AudioEngine.playChime('brew');
+      pushSms('등기소 알림', `축하합니다! ${d.name} 소재 꼬마빌딩 소유권 이전 등기가 완료되었습니다.`);
+      saveAllProgress(false);
+      renderAll();
+      renderMainMapDetail();
+    }
+
+    function doBuyBranch(id) {
+      const d = METRO_DISTRICTS.find(x => x.id === id);
+      const cost = Math.round(getDistrictCost(d, 'deposit') * 1.3);
+      if (state.cash < cost) return showToast('가게 인수 자금이 부족합니다.');
+      state.cash -= cost;
+      state.branches[id] = (state.branches[id] || 0) + 1;
+      AudioEngine.playChime('brew');
+      showToast(`🏪 [${d.name}] 신규 직영점을 인수했습니다!`);
+      renderAll();
+      renderMainMapDetail();
+    }
+
+    function doBuyBuilding(id) {
+      const d = METRO_DISTRICTS.find(x => x.id === id);
+      const cost = getDistrictCost(d, 'building');
+      if (state.cash < cost) return showToast('건물 매입 자금이 부족합니다.');
+      state.cash -= cost;
+      state.buildings[id] = true;
+      AudioEngine.playChime('brew');
+      pushSms('등기소 알림', `축하합니다! ${d.name} 소재 꼬마빌딩 소유권 이전 등기가 완료되었습니다.`);
+      renderAll();
+      renderMainMapDetail();
+    }
+
+    function calcNetWorth() {
+      let total = state.cash;
+      state.stocks.forEach(s => total += s.shares * s.price);
+      state.coins.forEach(c => total += (c.qty + c.staked) * c.price);
+      Object.entries(state.buildings).forEach(([id, own]) => {
+        if (own) {
+          const d = METRO_DISTRICTS.find(x => x.id === id);
+          if (d) total += getDistrictCost(d, 'building');
+        }
+      });
+      return Math.round(total);
+    }
+
+    function calcMonthlyBills() {
+      const d = getCurrentDistrict();
+      const rent = state.buildings[d.id] ? 0 : getDistrictCost(d, 'rent');
+      let wage = 0;
+      STAFF_TEMPLATES.forEach(t => wage += (state.staff[t.id] || 0) * t.wage);
+      const taxDisc = 1 - getRegularPerkValue('reg_minho', 'taxDisc');
+      const tax = Math.round(getRawCps() * 120 * taxDisc);
+
+      let passive = 0;
+      state.stocks.forEach(s => passive += Math.round(s.shares * s.price * 0.025));
+      state.coins.forEach(c => passive += Math.round(c.staked * c.price * 0.06));
+      Object.entries(state.branches).forEach(([id, cnt]) => {
+        const bd = METRO_DISTRICTS.find(x => x.id === id);
+        if (bd) passive += Math.round(getDistrictCost(bd, 'rent') * 1.4 * cnt);
+      });
+      Object.entries(state.buildings).forEach(([id, own]) => {
+        if (own) {
+          const bd = METRO_DISTRICTS.find(x => x.id === id);
+          if (bd) passive += Math.round(getDistrictCost(bd, 'rent') * 2.2);
+        }
+      });
+      if (state.franchiseMode === 'hq') passive += state.franchiseStores * 2800000;
+      if (state.franchiseMode === 'license') passive += state.menus.length * 1800000;
+      return { rent, wage, tax, passive };
+    }
+
+    function renderLedgerModal() {
+      const { rent, wage, tax, passive } = calcMonthlyBills();
+      const netWorth = calcNetWorth();
+      document.getElementById('ledger-body').innerHTML = `
+        <div class="bg-[#130f0c] border border-amber-700/40 rounded-2xl p-4 space-y-2.5">
+          <div class="flex justify-between items-center">
+            <span class="font-bold text-amber-300">☁️ 클라우드 계정 및 동기화</span>
+            <span class="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 text-[11px] font-bold">자동 백업 활성</span>
+          </div>
+          <div class="bg-[#1b1613] p-2.5 rounded-xl border border-stone-800 space-y-1 text-[11px]">
+            <div class="flex justify-between"><span class="text-stone-400">사장님 고유 ID:</span><strong class="font-mono-code text-amber-200">${state.playerId || '-'}</strong></div>
+            <div class="flex justify-between"><span class="text-stone-400">보안 PIN 번호:</span><strong class="font-mono-code text-stone-300">${state.pin ? '**** (설정됨)' : '미설정'}</strong></div>
+            <p class="text-stone-400 pt-1">다른 폰이나 PC에서 접속 시 첫 화면의 [기존 매장 불러오기]에서 위 ID와 PIN을 입력하면 그대로 이어집니다.</p>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="saveAllProgress(true)" class="py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 font-bold text-white">
+              ☁️ 지금 클라우드 저장
+            </button>
+            <button onclick="switchAccountOrReset()" class="py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 active:scale-95 text-stone-200 font-bold">
+              🔄 계정 전환 / 로그아웃
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-[#130f0c] border border-stone-800 rounded-2xl p-4 space-y-2.5">
+          <div class="flex justify-between font-bold text-amber-200">
+            <span>📅 매월 1일 정산 예정표 (1시간 주기)</span>
+            <span>총자산 ${fmtShort(netWorth)}</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2 pt-1">
+            <div>월 임대료: <strong class="text-rose-400">-${fmt(rent)}</strong></div>
+            <div>직원 인건비: <strong class="text-rose-400">-${fmt(wage)}</strong></div>
+            <div>예상 세금: <strong class="text-rose-400">-${fmt(tax)}</strong></div>
+            <div>부가 수익: <strong class="text-emerald-400">+${fmt(passive)}</strong></div>
+          </div>
+          <div class="pt-2 border-t border-stone-800 flex justify-between text-stone-400">
+            <span>누적 매출: <strong class="text-stone-200">${fmtShort(state.totalEarned)}</strong></span>
+            <span>보유 건물: <strong class="text-amber-300">${Object.values(state.buildings).filter(Boolean).length}채</strong></span>
+          </div>
+        </div>`;
+    }
+
+    async function renderRankModal() {
+      const netWorth = calcNetWorth();
+      const d = getCurrentDistrict();
+      const body = document.getElementById('rank-body');
+      body.innerHTML = `<div class="text-center py-6 text-stone-400">Firebase 실시간 순위 불러오는 중...</div>`;
+
+      await window.FB_API.syncRanking(state, netWorth, d.name);
+      const remoteList = await window.FB_API.fetchTopRankings();
+
+      const merged = new Map();
+      RIVAL_CAFES.forEach(r => merged.set(r.name, {
+        cafeName: r.name, nickname: r.nickname, netWorth: r.netWorth, districtName: r.districtName, starPrestige: r.starPrestige, isMe: false
+      }));
+      remoteList.forEach(r => merged.set(r.cafeName, { ...r, isMe: r.id === state.playerId }));
+      merged.set(state.cafeName, {
+        cafeName: state.cafeName, nickname: state.nickname, netWorth, districtName: d.name, starPrestige: state.starPrestige, isMe: true
+      });
+
+      const sorted = Array.from(merged.values()).sort((a, b) => b.netWorth - a.netWorth);
+      body.innerHTML = sorted.map((item, idx) => `
+        <div class="p-3 rounded-2xl border flex justify-between items-center gap-2 ${item.isMe ? 'bg-amber-500/15 border-amber-400 text-white' : 'bg-[#130f0c] border-stone-800'}">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <span class="font-mono-code font-black text-amber-300 w-7 shrink-0">${idx + 1}위</span>
+            <div class="truncate">
+              <strong class="text-stone-100">${item.cafeName}</strong>
+              <span class="text-stone-400 ml-1">(${item.nickname})</span>
+              <div class="text-[10px] text-stone-400 truncate">📍 ${item.districtName || '수도권'} ${item.starPrestige ? `· ⭐${item.starPrestige}회` : ''}</div>
+            </div>
+          </div>
+          <strong class="font-mono-code text-amber-300 shrink-0">${fmtShort(item.netWorth)}</strong>
+        </div>`).join('');
+    }
+
+    // =========================================================
+    // 창밖 시간대(새벽·아침·오후·노을·밤) & 날씨(맑음·흐림·비·눈)
+    // =========================================================
+    function renderWindowWeatherParticles() {
+      const container = document.getElementById('window-weather-particles');
+      if (!container) return;
+      if (state.weather === 'rain') {
+        let html = '';
+        for (let i = 0; i < 40; i++) {
+          const left = Math.random() * 100;
+          const dur = (0.55 + Math.random() * 0.45).toFixed(2);
+          const delay = (Math.random() * 1.5).toFixed(2);
+          html += `<div class="rain-streak" style="left:${left}%; animation-duration:${dur}s; animation-delay:${delay}s;"></div>`;
+        }
+        container.innerHTML = html;
+      } else if (state.weather === 'snow') {
+        let html = '';
+        for (let i = 0; i < 32; i++) {
+          const left = Math.random() * 100;
+          const dur = (2.6 + Math.random() * 2.0).toFixed(2);
+          const delay = (Math.random() * 2.5).toFixed(2);
+          html += `<div class="snow-flake" style="left:${left}%; animation-duration:${dur}s; animation-delay:${delay}s;"></div>`;
+        }
+        container.innerHTML = html;
+      } else {
+        container.innerHTML = '';
+      }
+    }
+
+    function updateWindowSkyAndClock() {
+      const ratio = (state.dayElapsedSec % DAY_SECONDS) / DAY_SECONDS;
+      const totalMins = Math.floor(ratio * 24 * 60);
+      const hh = String(Math.floor(totalMins / 60)).padStart(2, '0');
+      const mm = String(totalMins % 60).padStart(2, '0');
+      const clockStr = `${hh}:${mm}`;
+
+      const sky = document.getElementById('cafe-window-sky');
+      const sunMoon = document.getElementById('window-sun-moon');
+      const stars = document.getElementById('window-stars');
+      const clouds = document.getElementById('window-clouds');
+      const lights = document.getElementById('night-building-lights');
+      const clockBadge = document.getElementById('window-clock-badge');
+      const weatherBadge = document.getElementById('window-weather-badge');
+
+      sky.classList.remove('sky-dawn', 'sky-morning', 'sky-afternoon', 'sky-sunset', 'sky-night', 'sky-cloudy');
+
+      const isNight = ratio < 0.22 || ratio >= 0.80;
+      const isDawn = ratio >= 0.22 && ratio < 0.32;
+      const isMorning = ratio >= 0.32 && ratio < 0.55;
+      const isAfternoon = ratio >= 0.55 && ratio < 0.70;
+
+      if (state.weather === 'cloudy' || state.weather === 'rain' || state.weather === 'snow') {
+        sky.classList.add(isNight ? 'sky-night' : 'sky-cloudy');
+        clouds.classList.remove('hidden');
+      } else {
+        clouds.classList.add('hidden');
+        if (isNight) sky.classList.add('sky-night');
+        else if (isDawn) sky.classList.add('sky-dawn');
+        else if (isMorning) sky.classList.add('sky-morning');
+        else if (isAfternoon) sky.classList.add('sky-afternoon');
+        else sky.classList.add('sky-sunset');
+      }
+
+      stars.classList.toggle('hidden', !isNight || state.weather === 'cloudy' || state.weather === 'rain');
+      lights.classList.toggle('hidden', !isNight);
+
+      if (state.weather === 'rain' || state.weather === 'snow') {
+        sunMoon.classList.add('hidden');
+      } else {
+        sunMoon.classList.remove('hidden');
+        if (isNight) {
+          sunMoon.className = 'absolute top-7 right-10 sm:right-16 w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-amber-100 shadow-[0_0_28px_rgba(254,243,199,0.85)] transition-all duration-1000';
+        } else if (isDawn || (!isMorning && !isAfternoon)) {
+          sunMoon.className = 'absolute bottom-14 right-12 sm:right-20 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-orange-300 shadow-[0_0_45px_rgba(251,146,60,0.95)] transition-all duration-1000';
+        } else {
+          sunMoon.className = 'absolute top-6 right-10 sm:right-16 w-11 h-11 sm:w-14 sm:h-14 rounded-full bg-amber-200 shadow-[0_0_45px_rgba(253,224,71,0.95)] transition-all duration-1000';
+        }
+      }
+
+      const timeIcon = isNight ? '🌙' : isDawn ? '🌅' : (!isMorning && !isAfternoon) ? '🌆' : '☀️';
+      clockBadge.textContent = `${timeIcon} ${clockStr}`;
+      document.getElementById('phone-status-clock').textContent = clockStr;
+
+      const weatherLabelMap = {
+        clear: isNight ? '맑은 밤' : '맑음',
+        cloudy: '구름 많음',
+        rain: '비 내림 🌧️',
+        snow: '함박눈 ❄️'
+      };
+      weatherBadge.textContent = weatherLabelMap[state.weather];
+      document.getElementById('phone-widget-weather').textContent = weatherLabelMap[state.weather];
+    }
+
+    function toggleZenMode() {
+      zenMode = !zenMode;
+      document.getElementById('hud-header').classList.toggle('hidden', zenMode);
+      document.getElementById('btn-exit-zen').classList.toggle('hidden', !zenMode);
+      if (zenMode) showToast('👁️ 감상 모드 — 조용히 카페 풍경과 ASMR 소리를 즐겨보세요.');
+    }
+
+    function openModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+      if (id === 'modal-pos') switchPosTab('staff');
+      if (id === 'modal-map') { mountInteractiveMetroMap('main-metro-viewport', 'main', false); renderMainMapDetail(); }
+      if (id === 'modal-ledger') renderLedgerModal();
+      if (id === 'modal-rank') renderRankModal();
+    }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+    function processMonthEnd() {
+      state.monthCount += 1;
+      if (state.franchiseCooldownMonths > 0) state.franchiseCooldownMonths -= 1;
+
+      const { rent, wage, tax, passive } = calcMonthlyBills();
+      state.cash += (passive - (rent + wage + tax));
+
+      pushSms('월간 정산서', `제${state.monthCount - 1}개월차 정산 완료: 월세(-${fmtShort(rent)}), 인건비(-${fmtShort(wage)}), 세금(-${fmtShort(tax)}), 부가수익(+${fmtShort(passive)}).`);
+
+      if (!state.franchiseMode && !state.franchiseOffered && state.franchiseCooldownMonths === 0 &&
+          state.monthCount >= 3 && state.totalEarned >= 150000000 && state.menus.length >= 3 && state.regulars.length >= 3) {
+        state.franchiseOffered = true;
+        pushSms('대기업 F&B 제휴팀', `[제휴 제안] 「${state.cafeName}」의 브랜드 가치를 높게 평가하여 전국 프랜차이즈 및 라이선스 계약을 제안드립니다.`, 'franchise');
+      }
+
+      if (state.franchiseMode === 'hq') {
+        const target = METRO_DISTRICTS[Math.floor(Math.random() * METRO_DISTRICTS.length)];
+        pushSms('가맹사업본부', `[신규 가맹 신청] ${target.name}점에 「${state.cafeName}」 가맹점을 열고 싶다는 예비 점주 신청이 접수되었습니다.`, 'franchise_apply');
+      }
+      saveAllProgress(false);
+    }
+
+    function updateHUD() {
+      const d = getCurrentDistrict();
+      const rem = MONTH_SECONDS - state.monthElapsedSec;
+      const mm = String(Math.floor(rem / 60)).padStart(2, '0');
+      const ss = String(rem % 60).padStart(2, '0');
+      const trendIng = INGREDIENTS.find(x => x.id === state.trendingIng);
+
+      document.getElementById('hud-cafename').textContent = state.cafeName || '수도권 카페 타이쿤';
+      document.getElementById('hud-district').textContent = d.name;
+      document.getElementById('hud-date').textContent = `${Math.floor((state.monthCount - 1) / 12) + 1}년 ${((state.monthCount - 1) % 12) + 1}개월차`;
+      document.getElementById('hud-month-countdown').textContent = `${mm}:${ss}`;
+      document.getElementById('hud-cash').textContent = fmt(state.cash);
+      document.getElementById('hud-cps').textContent = `${fmt(getRawCps())}/초`;
+
+      document.getElementById('hud-hq-badge').classList.toggle('hidden', state.franchiseMode !== 'hq');
+      const starBadge = document.getElementById('hud-star-badge');
+      starBadge.classList.toggle('hidden', state.starPrestige <= 0);
+      starBadge.textContent = `⭐ ${state.starPrestige}회`;
+
+      const activeMenuName = state.activeMenuIdx >= 0 ? state.menus[state.activeMenuIdx].name : '기본 아메리카노';
+      document.getElementById('board-active-menu').textContent = activeMenuName;
+      document.getElementById('board-brew-power').textContent = `+${fmt(getBrewPower())}`;
+      document.getElementById('window-trend-badge').textContent = `${trendIng.icon} ${trendIng.name}`;
+
+      document.getElementById('floor-size-text').textContent = `${8 + state.extraSize * 4}평 (${getMaxStaffCap()}명)`;
+      document.getElementById('floor-reg-count').textContent = `${state.regulars.length}/${getMaxRegularSlots()}명`;
+
+      document.getElementById('obj-brew-price').textContent = `+${fmt(getBrewPower())}`;
+      document.getElementById('obj-autobrew-info').textContent = `자동 ${state.autoBrewInterval}초`;
+      document.getElementById('obj-pos-sub').textContent = `메뉴 ${state.menus.length} · 직원 ${getTotalStaff()}`;
+      document.getElementById('obj-networth-sub').textContent = `자산 ${fmtShort(calcNetWorth())}`;
+
+      document.getElementById('phone-widget-district').textContent = `📍 ${d.name}`;
+      document.getElementById('phone-widget-cash').textContent = fmt(state.cash);
+      document.getElementById('phone-widget-trend').textContent = `🔥 SNS 급상승: ${trendIng.name}`;
+    }
+
+    function renderAll() {
+      updateHUD();
+      updateWindowSkyAndClock();
+      renderWindowWeatherParticles();
+      renderFloorTables();
+      updatePhoneBadges();
+    }
+
+    // =========================================================
+    // 초기화 & 메인 타이머 루프
+    // =========================================================
+    initFloorTables();
+
+    if (loadLocal()) {
+      document.getElementById('onboarding-modal').classList.add('hidden');
+      renderAll();
+    } else {
+      if (window.innerWidth < 640) mapViews.init.scale = 0.62;
+      mountInteractiveMetroMap('init-metro-viewport', 'init', true);
+    }
+
+    let autoBrewAcc = 0;
+    setInterval(() => {
+      if (!state.started) return;
+      const cps = getRawCps();
+      if (cps > 0) {
+        state.cash += cps * 0.25;
+        state.totalEarned += cps * 0.25;
+      }
+      autoBrewAcc += 0.25;
+      if (autoBrewAcc >= state.autoBrewInterval) {
+        autoBrewAcc = 0;
+        brewEspressoFromMachine(null, true);
+      }
+      updateHUD();
+    }, 250);
+
+    setInterval(() => {
+      if (!state.started) return;
+      state.monthElapsedSec += 1;
+      state.dayElapsedSec += 1;
+
+      if (state.dayElapsedSec % DAY_SECONDS === 0) {
+        const weathers = ['clear', 'clear', 'cloudy', 'rain', 'snow'];
+        state.weather = weathers[Math.floor(Math.random() * weathers.length)];
+        renderWindowWeatherParticles();
+        syncAudioGains();
+      }
+      updateWindowSkyAndClock();
+
+      if (state.monthElapsedSec >= MONTH_SECONDS) {
+        state.monthElapsedSec = 0;
+        processMonthEnd();
+      }
+    }, 1000);
+
+    setInterval(() => {
+      if (!state.started) return;
+      state.stocks.forEach(s => {
+        s.prev = s.price;
+        s.price = Math.max(1000, Math.round(s.price * (1 + (Math.random() - 0.48) * 0.055)));
+      });
+      if (!document.getElementById('modal-phone').classList.contains('hidden') &&
+          document.getElementById('phone-app-title').textContent.includes('증권')) {
+        renderPhoneStockApp();
+      }
+    }, 3000);
+
+    setInterval(() => {
+      if (!state.started) return;
+      state.coins.forEach(c => {
+        c.prev = c.price;
+        const vol = (c.id === 'c3' || c.id === 'c4') ? 0.14 : 0.05;
+        c.price = Math.max(10, Math.round(c.price * (1 + (Math.random() - 0.485) * vol)));
+      });
+      if (!document.getElementById('modal-phone').classList.contains('hidden') &&
+          document.getElementById('phone-app-title').textContent.includes('코인')) {
+        renderPhoneCoinApp();
+      }
+    }, 800);
+
+    setInterval(() => {
+      if (!state.started) return;
+      const d = METRO_DISTRICTS[Math.floor(Math.random() * METRO_DISTRICTS.length)];
+      const up = Math.random() > 0.45;
+      const cur = state.districtMods[d.id] || 1.0;
+      state.districtMods[d.id] = Math.max(0.75, Math.min(1.85, +(cur + (up ? 0.12 : -0.1)).toFixed(2)));
+
+      const ing = INGREDIENTS[Math.floor(Math.random() * INGREDIENTS.length)];
+      state.trendingIng = ing.id;
+
+      const ticker = document.getElementById('hud-news-ticker');
+      if (ticker) {
+        ticker.textContent = `[부동산] ${d.name} 시세 ${up ? '상승세 ▲' : '조정세 ▼'} · [SNS] '${ing.name}' 음료 인기!`;
+      }
+
+      const curD = getCurrentDistrict();
+      const postPool = [
+        {
+          author: '@metro_coffee_lover',
+          badge: '카페 투어리스트',
+          district: d.name,
+          text: `${d.name} 상권 요즘 분위기 완전 뜨겁네요! 특히 #${ing.name.replace(/\s+/g, '')} 들어간 메뉴가 줄 서서 먹는 중 🔥`,
+          tags: `#${d.name.split(' ')[1] || d.region}카페 #${ing.name.replace(/\s+/g, '')}`
+        },
+        {
+          author: '@daily_latte_log',
+          badge: '단골 리뷰어',
+          district: curD.name,
+          text: `${curD.name}의 「${state.cafeName}」 다녀왔어요. 창밖 풍경 보면서 커피 마시니 시간이 멈춘 기분 ☕✨`,
+          tags: `#${state.cafeName.replace(/\s+/g, '')} #${curD.region}카페추천`
+        }
+      ];
+      const chosen = postPool[Math.floor(Math.random() * postPool.length)];
+      state.snsPosts.unshift({
+        id: Date.now(),
+        ...chosen,
+        likes: 45 + Math.floor(Math.random() * 260),
+        liked: false,
+        time: '방금 전'
+      });
+      if (state.snsPosts.length > 15) state.snsPosts.pop();
+      state.unreadSns += 1;
+      updatePhoneBadges();
+
+      if (up && state.regulars.some(r => r.id === 'reg_park') && Math.random() < 0.45) {
+        pushSms('공인중개사 박 소장', `사장님, 방금 들어온 정보인데 [${d.name}] 쪽 상권 시세가 오르고 있습니다. 참고하세요!`);
+      }
+
+      floorCustomers.forEach(c => { if (Math.random() < 0.5) c.hasBubble = true; });
+      renderFloorTables();
+
+      if (Math.random() < 0.45) spawnRegularCandidate();
+      saveAllProgress(false);
+    }, 35000);
+
+    // 25초 주기 클라우드 자동 백업 & 랭킹 동기화
+    setInterval(() => {
+      if (state.started) {
+        saveAllProgress(false);
+      }
+    }, 25000);
+  </script>
+</body>
+</html>
