@@ -1,1 +1,1 @@
-https://bright-tanuki-fd6873.netlify.app
+https://peppy-semolina-0f143a.netlify.app
