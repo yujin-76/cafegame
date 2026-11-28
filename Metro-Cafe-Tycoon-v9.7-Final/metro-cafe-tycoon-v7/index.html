@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>수도권 카페 타이쿤 - Metro Cafe Tycoon</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="relative select-none">
+
+  <!-- ==================== 1. 풀스크린 카페 실내 & 파노라마 창밖 캔버스 ==================== -->
+  <canvas id="cafeSceneCanvas" class="fixed inset-0 w-full h-full block z-0"></canvas>
+
+  <!-- 영업 마감 후 새벽 자동 스킵 전환 오버레이 -->
+  <div id="nightSkipOverlay" class="hidden fixed inset-0 z-[60] pointer-events-none bg-gradient-to-b from-slate-950/90 via-indigo-950/85 to-amber-950/80 backdrop-blur-[2px] flex items-center justify-center transition-opacity duration-300">
+    <div class="rounded-3xl border border-amber-400/40 bg-stone-950/85 px-6 py-4 text-center shadow-2xl">
+      <div id="nightSkipIcon" class="text-3xl mb-1">🌙✨</div>
+      <div id="nightSkipTitle" class="text-sm sm:text-base font-black text-amber-200">PM 11:00 영업 마감 · 새벽 시간 자동 스킵</div>
+      <div id="nightSkipSub" class="text-xs text-stone-300 mt-1">다음 날 오전 08:00 오픈 준비 중...</div>
+    </div>
+  </div>
+
+  <div id="fundsWarningBanner" class="hidden fixed top-2 left-1/2 -translate-x-1/2 z-[100] w-[min(94vw,560px)] rounded-2xl border-2 border-rose-300 bg-rose-950/95 px-4 py-3 text-center text-sm font-black text-white shadow-2xl funds-warning">
+    <span id="fundsWarningText">⚠️ 자금이 부족합니다.</span>
+    <button onclick="hideFundsWarning()" class="ml-3 rounded-lg bg-rose-800 px-2 py-1 text-xs">확인</button>
+  </div>
+
+  <!-- 감상 모드 복귀 버튼 -->
+  <button id="scenicExitBtn" onclick="toggleScenicMode(false)"
+    class="fixed top-4 right-4 z-50 bg-stone-900/75 hover:bg-stone-800 text-amber-100 border border-amber-500/40 backdrop-blur-md px-4 py-2.5 rounded-full text-xs sm:text-sm font-bold shadow-xl flex items-center gap-2">
+    <span>🪟</span>
+    <span id="scenicBadgeText">창밖 감상 중 · 돌아가기</span>
+  </button>
+
+  <!-- ==================== 2. 상단 HUD (계절·날씨·자금·BGM) ==================== -->
+  <header id="topHud" class="hud-layer fixed top-0 left-0 right-0 z-20 pt-[calc(var(--safe-top)+0.5rem)] px-2.5 sm:px-5 pointer-events-none">
+    <div class="max-w-6xl mx-auto flex flex-col gap-1.5 pointer-events-auto">
+      <div class="bg-stone-950/80 backdrop-blur-md border border-amber-900/50 rounded-2xl px-3 py-2 shadow-lg flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="text-lg sm:text-xl">☕</span>
+          <div class="truncate">
+            <div class="flex items-center gap-1.5">
+              <span id="hudCafeName" class="font-extrabold text-amber-200 text-xs sm:text-sm truncate">로딩중...</span>
+              <span id="hudLocationBadge" class="text-[10px] sm:text-xs bg-amber-900/60 text-amber-300 px-2 py-0.5 rounded-full border border-amber-700/40 shrink-0">인천 구월동</span>
+            </div>
+            <div id="hudSeasonWeather" class="text-[11px] sm:text-xs text-stone-300 flex items-center gap-1.5 mt-0.5">
+              <span>🌸 봄 · 1일차</span>
+              <span>·</span>
+              <span>☀️ 맑음</span>
+              <span>·</span>
+              <span class="font-bold text-amber-200">AM 09:00</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button id="speedToggleBtn" onclick="toggleGameSpeed()"
+            class="bg-stone-800/85 hover:bg-stone-700 border border-stone-600/50 text-stone-200 px-2.5 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1 transition"
+            title="게임 진행 속도를 1배속 / 2배속으로 전환합니다">
+            <span id="speedIcon">▶️</span>
+            <span id="speedLabel">1x</span>
+          </button>
+          <button id="bgmToggleBtn" onclick="toggleAudio()"
+            class="bg-amber-900/50 hover:bg-amber-800/70 border border-amber-600/40 text-amber-100 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition">
+            <span id="bgmIcon">🔇</span>
+            <span class="hidden sm:inline" id="bgmLabel">BGM 켜기</span>
+          </button>
+          <button onclick="toggleScenicMode(true)"
+            class="bg-stone-800/80 hover:bg-stone-700 border border-stone-600/50 text-stone-200 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition"
+            title="UI를 숨기고 카페 실내와 창밖 풍경을 감상합니다">
+            <span>🪟</span>
+            <span>감상</span>
+          </button>
+          <button id="tutorialHelpBtn" onclick="openTutorialModal(true)"
+            class="bg-sky-900/70 hover:bg-sky-800 border border-sky-500/60 text-sky-100 w-7 h-7 sm:w-8 sm:h-8 rounded-xl text-xs sm:text-sm font-black flex items-center justify-center shadow transition"
+            title="게임 기능 가이드 & 튜토리얼 다시 보기">
+            ?
+          </button>
+        </div>
+      </div>
+
+      <div class="hud-stats-grid grid grid-cols-4 gap-1.5 bg-stone-950/75 backdrop-blur-md border border-stone-800/80 rounded-2xl px-2.5 py-1.5 text-center shadow">
+        <div class="flex flex-col">
+          <span class="text-[10px] text-stone-400">보유 자금</span>
+          <span id="hudCash" class="text-xs sm:text-sm font-extrabold text-emerald-400 truncate">8,000,000원</span>
+        </div>
+        <div class="flex flex-col border-l border-stone-800">
+          <span class="text-[10px] text-stone-400">매장 평판</span>
+          <span id="hudReputation" class="text-xs sm:text-sm font-bold text-amber-300">★ 10 (초보)</span>
+        </div>
+        <div class="flex flex-col border-l border-stone-800">
+          <span class="text-[10px] text-stone-400">식자재 창고</span>
+          <span id="hudStock" class="text-xs sm:text-sm font-bold text-sky-300">원두상시 · 0개</span>
+        </div>
+        <div class="flex flex-col border-l border-stone-800">
+          <span class="text-[10px] text-stone-400">직원 / 지점</span>
+          <span id="hudRegulars" class="text-xs sm:text-sm font-bold text-rose-300">0/8명 · 1개점</span>
+        </div>
+        <button id="guideQuestBanner" onclick="claimGuideQuest()" class="hidden guide-quest col-span-2 sm:col-span-4 w-full rounded-xl border border-sky-400/50 bg-sky-950/90 px-3 py-2 text-left text-xs font-bold text-sky-100 shadow-lg"></button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== 3. 실시간 알림 토스트 & 단골 승격 배너 ==================== -->
+  <div id="toastContainer" class="hud-layer fixed top-16 left-1/2 -translate-x-1/2 z-[65] flex flex-col items-center gap-2 w-[92%] max-w-md pointer-events-none"></div>
+
+  <!-- ==================== 구매 완료 & 추가 구매 확인 모달 ==================== -->
+  <div id="purchaseConfirmModal" class="hidden fixed inset-0 z-[55] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-stone-900 border-2 border-emerald-500/60 rounded-3xl max-w-sm w-full p-5 shadow-2xl text-center space-y-3">
+      <div id="pcIcon" class="text-4xl">🎉</div>
+      <div class="inline-block bg-emerald-500/20 text-emerald-300 text-[11px] font-extrabold px-3 py-1 rounded-full">
+        ✅ 구매 및 결제 완료
+      </div>
+      <h3 id="pcTitle" class="text-base sm:text-lg font-black text-white">구매가 완료되었습니다!</h3>
+      <p id="pcSummary" class="text-xs text-stone-300 leading-relaxed bg-stone-950/90 border border-stone-800 rounded-2xl p-3"></p>
+      <div id="pcBalance" class="text-xs font-bold text-amber-300">남은 보유 자금: 0원</div>
+      <div id="pcPromptText" class="text-xs font-extrabold text-sky-200 pt-1">계속해서 추가 구매를 진행하시겠습니까?</div>
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button id="pcStayBtn" type="button"
+          class="py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-stone-950 text-xs font-black shadow">
+          🛒 계속 추가 구매
+        </button>
+        <button id="pcDoneBtn" type="button"
+          class="py-2.5 px-3 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-bold">
+          확인 (창 닫기)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="regularOfferModal" class="hidden fixed inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-stone-900 border-2 border-amber-500/70 rounded-3xl max-w-sm w-full p-5 shadow-2xl text-center">
+      <div class="text-4xl mb-2" id="offerAvatar">🎨</div>
+      <div class="inline-block bg-amber-500/20 text-amber-300 text-xs font-bold px-3 py-1 rounded-full mb-2">
+        💖 까다로운 조건 달성! VIP 단골 승격 기회
+      </div>
+      <h3 id="offerName" class="text-lg font-extrabold text-white mb-1">홍대 미대생 단골</h3>
+      <p id="offerDesc" class="text-xs text-stone-300 leading-relaxed mb-3">
+        수많은 수도권 손님 중 꾸준한 재방문과 매장 평판 조건을 모두 충족해 우리 카페의 공식 VIP 단골로 등록할 수 있습니다!
+      </p>
+      <div class="bg-stone-950/80 border border-stone-800 rounded-2xl p-3 text-left text-xs space-y-1 mb-4">
+        <div class="text-amber-300 font-bold" id="offerPerk">✨ 특수 효과: 메뉴 판매 단가 +12%</div>
+        <div class="text-stone-400" id="offerFav">☕ 최애 메뉴: 수제 크림 아인슈페너</div>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <button onclick="respondRegularOffer(false)" class="py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-bold">
+          정중히 사양하기
+        </button>
+        <button onclick="respondRegularOffer(true)" class="py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-stone-950 text-xs font-extrabold shadow-lg">
+          단골로 맞이하기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 4. 하단 퀵 메뉴 바 (슬림 1줄 도크) ==================== -->
+  <footer id="bottomCounter" class="hud-layer fixed bottom-0 left-0 right-0 z-20 pb-[calc(var(--safe-bottom)+0.55rem)] pt-2 px-2.5 sm:px-5 bg-gradient-to-t from-stone-950/95 via-stone-950/75 to-transparent">
+    <div class="max-w-4xl mx-auto">
+      <div class="dock-grid grid grid-cols-7 gap-1 sm:gap-2">
+        <button onclick="openModal('posModal')"
+          class="bg-stone-900/90 hover:bg-stone-800 active:scale-95 border border-amber-700/60 rounded-2xl py-2 px-1 flex flex-col items-center justify-center gap-0.5 shadow transition">
+          <span class="text-lg sm:text-xl">🖥️</span>
+          <span class="text-xs font-bold text-amber-100">매장·가구</span>
+        </button>
+
+        <button id="phoneDockBtn" onclick="openPhoneFromAlert()"
+          class="relative bg-stone-900/90 hover:bg-stone-800 active:scale-95 border border-sky-700/60 rounded-2xl py-2 px-1 flex flex-col items-center justify-center gap-0.5 shadow transition">
+          <span id="phoneBadge" class="hidden absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap px-1.5 py-0.5 rounded-full bg-rose-600 text-white text-[9px] font-black shadow-lg border border-rose-300/60 animate-bounce z-10">💬 새 알림</span>
+          <span class="text-lg sm:text-xl">📱</span>
+          <span class="text-xs font-bold text-sky-200">스마트폰</span>
+        </button>
+
+        <button id="tabletDockBtn" onclick="openTabletFromAlert()"
+          class="relative bg-stone-900/90 hover:bg-stone-800 active:scale-95 border border-violet-700/60 rounded-2xl py-2 px-1 flex flex-col items-center justify-center gap-0.5 shadow transition">
+          <span id="tabletBadge" class="hidden absolute top-0 right-[14%] min-w-[14px] rounded-full bg-rose-500 px-1 text-[9px] font-black text-white">!</span>
+          <span class="text-lg sm:text-xl">📟</span>
+          <span class="text-xs font-bold text-violet-200">경영 태블릿</span>
+        </button>
+
+        <button onclick="openModal('mapModal')"
+          class="bg-stone-900/90 hover:bg-stone-800 active:scale-95 border border-emerald-700/60 rounded-2xl py-2 px-1 flex flex-col items-center justify-center gap-0.5 shadow transition">
+          <span class="text-lg sm:text-xl">🗺️</span>
+          <span class="text-xs font-bold text-emerald-200">수도권 지도</span>
+        </button>
+
+        <button onclick="openModal('radioModal')"
+          class="bg-stone-900/90 hover:bg-stone-800 active:scale-95 border border-amber-700/50 rounded-2xl py-2 px-1 flex flex-col items-center justify-center gap-0.5 shadow transition">
+          <span class="text-lg sm:text-xl">📻</span>
+          <span class="text-xs font-bold text-amber-200">오디오·날씨</span>
+        </button>
+
+        <button onclick="openModal('ledgerModal')"
+          class="bg-stone-900/90 hover:bg-stone-800 active:scale-95 border border-stone-700/80 rounded-2xl py-2 px-1 flex flex-col items-center justify-center gap-0.5 shadow transition">
+          <span class="text-lg sm:text-xl">📒</span>
+          <span class="text-xs font-bold text-stone-200">경영·저장</span>
+        </button>
+
+        <button onclick="openModal('rankModal')"
+          class="bg-stone-900/90 hover:bg-stone-800 active:scale-95 border border-yellow-600/60 rounded-2xl py-2 px-1 flex flex-col items-center justify-center gap-0.5 shadow transition">
+          <span class="text-lg sm:text-xl">🏆</span>
+          <span class="text-xs font-bold text-yellow-300">수도권 랭킹</span>
+        </button>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ==================== 5. 창업 및 클라우드 이어하기 온보딩 모달 ==================== -->
+  <div id="onboardingModal" class="fixed inset-0 z-50 bg-stone-950/95 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-stone-900 border border-amber-700/60 rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl my-auto">
+      <div class="text-center mb-4">
+        <div class="text-3xl mb-1">☕🏙️</div>
+        <h1 class="text-xl sm:text-2xl font-black text-amber-200">수도권 카페 타이쿤</h1>
+        <p class="text-xs text-stone-400 mt-1">서울·경기·인천 35개 실제 상권 자영업 시뮬레이션</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-1.5 bg-stone-950 p-1 rounded-2xl mb-4 border border-stone-800">
+        <button id="tabNewBtn" onclick="switchOnboardTab('new')" class="py-2 rounded-xl text-xs font-extrabold bg-amber-600 text-white transition">
+          ✨ 신규 카페 개업
+        </button>
+        <button id="tabLoadBtn" onclick="switchOnboardTab('load')" class="py-2 rounded-xl text-xs font-bold text-stone-400 hover:text-white transition">
+          ☁️ 기존 매장 불러오기
+        </button>
+      </div>
+
+      <div id="onboardNewForm" class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-amber-200 mb-1">사장님 고유 아이디 (중복 불가 · 영문/숫자 4~16자)</label>
+          <input id="regPlayerId" type="text" maxlength="16" placeholder="예: cafe_master01"
+            class="w-full bg-stone-950 border border-stone-700 focus:border-amber-500 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-bold text-amber-200 mb-1">사장님 닉네임</label>
+            <input id="regNickname" type="text" maxlength="12" placeholder="예: 김사장"
+              class="w-full bg-stone-950 border border-stone-700 focus:border-amber-500 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-amber-200 mb-1">4자리 숫자 PIN</label>
+            <input id="regPin" type="password" inputmode="numeric" maxlength="4" placeholder="예: 1234"
+              class="w-full bg-stone-950 border border-stone-700 focus:border-amber-500 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none tracking-widest" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-amber-200 mb-1">카페 상호명 (전 서버 중복 불가)</label>
+          <div class="flex gap-1.5">
+            <input id="regCafeName" type="text" maxlength="16" placeholder="예: 연남동 구름커피"
+              class="flex-1 bg-stone-950 border border-stone-700 focus:border-amber-500 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none" />
+            <button type="button" onclick="fillRandomCafeName()" class="px-3 py-2 bg-stone-800 hover:bg-stone-700 rounded-xl text-xs font-bold text-amber-300 shrink-0">
+              🎲 추천
+            </button>
+          </div>
+        </div>
+
+        <p id="onboardNewError" class="text-xs text-rose-400 font-semibold min-h-[1rem]"></p>
+
+        <button id="createCafeBtn" onclick="handleVerifyAndOpenMap()"
+          class="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 hover:brightness-110 text-stone-950 font-black text-sm shadow-lg transition">
+          중복 확인 후 지도에서 상권 고르기 →
+        </button>
+      </div>
+
+      <div id="onboardLoadForm" class="hidden space-y-3">
+        <p class="text-xs text-stone-300 bg-stone-950/80 p-3 rounded-xl border border-stone-800 leading-relaxed">
+          사장님 고유 아이디와 4자리 숫자 PIN으로 클라우드 매장을 이어할 수 있습니다.
+        </p>
+        <div>
+          <label class="block text-xs font-bold text-sky-300 mb-1">사장님 고유 아이디</label>
+          <input id="loginPlayerId" type="text" autocomplete="username" maxlength="16" placeholder="가입한 아이디"
+            class="w-full bg-stone-950 border border-stone-700 focus:border-sky-500 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-sky-300 mb-1">4자리 숫자 PIN</label>
+          <input id="loginPin" type="password" inputmode="numeric" maxlength="4" placeholder="4자리 PIN"
+            class="w-full bg-stone-950 border border-stone-700 focus:border-sky-500 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none tracking-widest" />
+        </div>
+        <p id="onboardLoadError" class="text-xs text-rose-400 font-semibold min-h-[1rem]"></p>
+        <button id="loadCafeBtn" onclick="handleLoadCafe()"
+          class="w-full py-3 rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-600 hover:brightness-110 text-white font-black text-sm shadow-lg transition">
+          ☁️ 클라우드에서 매장 불러오기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 6. 포스기 모달 ==================== -->
+  <div id="posModal" class="hidden fixed inset-0 z-40 bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-stone-900 border-t sm:border border-stone-700 rounded-t-3xl sm:rounded-3xl w-full max-w-6xl max-h-[90dvh] flex flex-col shadow-2xl">
+      <div class="p-4 border-b border-stone-800 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🖥️</span>
+          <h2 class="font-extrabold text-base text-amber-200">매장 운영 · 인테리어 가구</h2>
+        </div>
+        <button onclick="closeModal('posModal')" class="w-8 h-8 rounded-full bg-stone-800 text-stone-300 font-bold">✕</button>
+      </div>
+
+      <div class="grid grid-cols-3 gap-1 p-2 bg-stone-950 border-b border-stone-800 text-xs font-bold">
+        <button onclick="switchPosTab('menu')" id="posTabMenu" class="py-2 rounded-xl bg-amber-600 text-white">☕ 메뉴 개발·판매가</button>
+        <button onclick="switchPosTab('staff')" id="posTabStaff" class="py-2 rounded-xl text-stone-400">🪑 가구상점·배치</button>
+        <button onclick="switchPosTab('regulars')" id="posTabRegulars" class="py-2 rounded-xl text-stone-400">⭐ 미식 평가단</button>
+      </div>
+
+      <div id="mobilePosSubSwitcher" class="mobile-pos-switcher grid-cols-2 gap-1.5 px-3 py-2 bg-stone-900/90 border-b border-stone-800 text-xs font-extrabold">
+        <button id="mobilePosMenuViewBtn" onclick="setMobilePosView('menu')" class="py-2 rounded-xl bg-emerald-600 text-white shadow">📋 메뉴판 · 레시피</button>
+        <button id="mobilePosOrderViewBtn" onclick="setMobilePosView('order')" class="py-2 rounded-xl bg-stone-800 text-stone-300">📦 식자재 발주창</button>
+      </div>
+
+      <div id="posContent" class="p-3 sm:p-4 overflow-y-auto space-y-3 flex-1 text-xs sm:text-sm"></div>
+    </div>
+  </div>
+
+  <!-- ==================== 7. 스마트폰 모달 ==================== -->
+  <div id="phoneModal" class="hidden fixed inset-0 z-40 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="phone-chassis bg-stone-950 rounded-[2.4rem] w-full max-w-[370px] h-[82dvh] max-h-[680px] flex flex-col overflow-hidden border-4 border-stone-800">
+      <div class="bg-stone-900 px-5 pt-2.5 pb-2 flex items-center justify-between text-[11px] text-stone-300 border-b border-stone-800/80">
+        <span id="phoneClock" class="font-bold">AM 09:00</span>
+        <div class="w-16 h-3.5 bg-black rounded-full"></div>
+        <div class="flex items-center gap-1">
+          <span>5G</span>
+          <span>🔋94%</span>
+        </div>
+      </div>
+
+      <div class="bg-stone-900/90 px-4 py-2.5 flex items-center justify-between border-b border-stone-800">
+        <span id="phoneAppTitle" class="font-extrabold text-sm text-white">📱 사장님 스마트폰</span>
+        <button onclick="closeModal('phoneModal')" class="text-xs bg-stone-800 hover:bg-stone-700 text-stone-300 px-2.5 py-1 rounded-full font-bold">닫기</button>
+      </div>
+
+      <div id="phoneBody" class="flex-1 overflow-y-auto p-3.5 space-y-3 bg-stone-950"></div>
+
+      <div class="bg-stone-900 border-t border-stone-800 px-2 py-2 grid grid-cols-2 gap-1 text-center">
+        <button onclick="switchPhoneApp('sns')" id="appBtnSns" class="relative py-1.5 rounded-xl flex flex-col items-center gap-0.5 text-stone-400">
+          <span id="badgeSns" class="hidden absolute top-0.5 right-1.5 min-w-[14px] h-[14px] px-1 rounded-full bg-pink-500 text-white text-[9px] font-black flex items-center justify-center">!</span>
+          <span class="text-base">📸</span>
+          <span class="text-[10px] font-bold">카페그램</span>
+        </button>
+        <button onclick="switchPhoneApp('msg')" id="appBtnMsg" class="relative py-1.5 rounded-xl flex flex-col items-center gap-0.5 text-stone-400">
+          <span id="badgeMsg" class="hidden absolute top-0.5 right-1.5 min-w-[15px] h-[15px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center">1</span>
+          <span class="text-base">💬</span>
+          <span class="text-[10px] font-bold">문자함</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 매장용 태블릿: 투자·직원·발주·정산 -->
+  <div id="tabletModal" class="hidden fixed inset-0 z-40 bg-black/75 backdrop-blur-sm flex items-center justify-center p-2 sm:p-5">
+    <div class="tablet-shell w-full max-w-6xl h-[92dvh] rounded-3xl border border-violet-400/40 bg-stone-950 shadow-2xl flex flex-col overflow-hidden">
+      <div class="flex items-center justify-between border-b border-stone-800 bg-stone-900 px-4 py-3">
+        <div><div id="tabletAppTitle" class="text-sm font-black text-violet-200">📟 매장 경영 태블릿</div><div class="text-[10px] text-stone-400">투자 · 인력 · 식자재 · 계절 결산</div></div>
+        <button onclick="closeModal('tabletModal')" class="rounded-full bg-stone-800 px-3 py-1.5 text-xs font-bold text-stone-200">닫기</button>
+      </div>
+      <div class="grid grid-cols-3 sm:grid-cols-6 gap-1.5 border-b border-stone-800 bg-stone-900 p-2 text-xs font-extrabold">
+        <button id="tAppStock" onclick="openTabletApp('stock')" class="rounded-xl bg-violet-600 py-2 text-white">📈 주식</button>
+        <button id="tAppCoin" onclick="openTabletApp('coin')" class="rounded-xl py-2 text-stone-400">🪙 코인</button>
+        <button id="tAppMarket" onclick="openTabletApp('market')" class="rounded-xl py-2 text-stone-400">📦 발주·구독</button>
+        <button id="tAppStaff" onclick="openTabletApp('staff')" class="rounded-xl py-2 text-stone-400">👥 직원</button>
+        <button id="tAppBranch" onclick="openTabletApp('branch')" class="rounded-xl py-2 text-stone-400">🏪 지점컨셉</button>
+        <button id="tAppReport" onclick="openTabletApp('report')" class="rounded-xl py-2 text-stone-400">🧾 정산</button>
+      </div>
+      <div id="tabletBody" class="tablet-body flex-1 overflow-y-auto p-3 sm:p-5"></div>
+    </div>
+  </div>
+
+  <div id="seasonLedgerModal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="w-full max-w-lg rounded-3xl border border-amber-400/50 bg-stone-950 p-5 shadow-2xl">
+      <div class="mb-3 flex items-center justify-between">
+        <div><h2 class="font-black text-amber-200">🧾 계절 전환 경영 정산</h2><p class="text-[10px] text-stone-400">최근 16일(1계절 · 1개월) 운영 내역</p></div>
+        <button onclick="closeModal('seasonLedgerModal')" class="rounded-full bg-stone-800 px-3 py-1.5 text-xs">닫기</button>
+      </div>
+      <div id="seasonLedgerContent" class="space-y-2"></div>
+    </div>
+  </div>
+
+  <!-- ==================== 8. 수도권 정밀 인터랙티브 지도 모달 ==================== -->
+  <div id="mapModal" class="hidden fixed inset-0 z-40 bg-black/80 backdrop-blur-sm flex flex-col">
+    <div id="initialMapBanner" class="hidden bg-gradient-to-r from-amber-500 to-orange-500 text-stone-950 px-3 py-2 text-xs sm:text-sm font-black text-center shadow">
+      🗺️ 첫 카페를 열 상권을 지도에서 직접 터치해 선택하세요! ✨빛나는 4곳 추천 상권 · 초기 자본금 8,000,000원
+    </div>
+
+    <div class="bg-stone-900 border-b border-stone-800 px-3 py-2.5 flex items-center justify-between">
+      <div>
+        <h2 class="font-extrabold text-sm sm:text-base text-emerald-300">🗺️ 수도권(서울·경기·인천) 35개 상권 지도</h2>
+        <p class="text-[11px] text-stone-400">드래그로 이동 · 두 손가락/버튼으로 확대 · 핀 터치로 상권 선택</p>
+      </div>
+      <button id="mapCloseBtn" onclick="closeModal('mapModal')" class="w-8 h-8 rounded-full bg-stone-800 text-stone-200 font-bold">✕</button>
+    </div>
+
+    <div class="bg-stone-950 px-2.5 py-2 flex items-center gap-1.5 overflow-x-auto border-b border-stone-800 shrink-0">
+      <button onclick="focusMapRegion('all')" class="px-3 py-1.5 rounded-full bg-stone-800 hover:bg-emerald-700 text-xs font-bold text-white shrink-0">전체 수도권</button>
+      <button onclick="focusMapRegion('seoul')" class="px-3 py-1.5 rounded-full bg-stone-800 hover:bg-emerald-700 text-xs font-bold text-amber-200 shrink-0">서울 (18)</button>
+      <button onclick="focusMapRegion('incheon')" class="px-3 py-1.5 rounded-full bg-stone-800 hover:bg-emerald-700 text-xs font-bold text-sky-200 shrink-0">인천 (6)</button>
+      <button onclick="focusMapRegion('gyeonggi_south')" class="px-3 py-1.5 rounded-full bg-stone-800 hover:bg-emerald-700 text-xs font-bold text-emerald-200 shrink-0">경기 남부</button>
+      <button onclick="focusMapRegion('gyeonggi_north')" class="px-3 py-1.5 rounded-full bg-stone-800 hover:bg-emerald-700 text-xs font-bold text-purple-200 shrink-0">경기 북·동부</button>
+    </div>
+
+    <div id="metroMapViewport" class="relative flex-1 bg-[#dceaf5] overflow-hidden select-none">
+      <div id="metroMapTransform" class="absolute origin-top-left will-change-transform" style="width: 1200px; height: 900px;">
+        <svg viewBox="0 0 1200 900" class="w-full h-full pointer-events-none">
+          <defs>
+            <linearGradient id="cleanSea" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#c6dff2"/>
+              <stop offset="100%" stop-color="#e3eff8"/>
+            </linearGradient>
+            <linearGradient id="cleanLand" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#f7f5ef"/>
+              <stop offset="100%" stop-color="#ede9de"/>
+            </linearGradient>
+          </defs>
+
+          <!-- 서해 바다 -->
+          <rect width="1200" height="900" fill="url(#cleanSea)" />
+
+          <!-- 수도권(인천·경기·서울) 본토 실루엣 -->
+          <path d="M 278,96
+                   L 465,64 L 582,52 L 805,105 L 1015,192 L 1118,262
+                   L 1146,505 L 1142,625 L 978,832 L 695,854 L 525,856
+                   L 328,735 L 274,582 L 224,468 L 228,348 L 208,302 L 245,215 Z"
+                fill="url(#cleanLand)" stroke="#94a3b8" stroke-width="2.5" stroke-linejoin="round"/>
+
+          <!-- 강화도 & 영종도 -->
+          <polygon points="145,218 214,205 225,292 154,306" fill="#f7f5ef" stroke="#94a3b8" stroke-width="2.2" stroke-linejoin="round"/>
+          <polygon points="116,408 198,392 210,456 128,465" fill="#f7f5ef" stroke="#94a3b8" stroke-width="2.2" stroke-linejoin="round"/>
+
+          <!-- 인천 권역 부드러운 구획 -->
+          <path d="M 224,335 L 336,352 L 352,468 L 318,595 L 268,615 L 228,538 L 236,435 Z"
+                fill="#e7f1ea" stroke="#64748b" stroke-width="1.6" stroke-dasharray="6 4" opacity="0.85"/>
+
+          <!-- 서울 권역 부드러운 구획 -->
+          <path d="M 454,344 L 555,304 L 648,338 L 666,425 L 585,468 L 456,442 L 432,395 Z"
+                fill="#fffbeb" stroke="#d97706" stroke-width="2.2" stroke-linejoin="round" opacity="0.9"/>
+
+          <!-- 핵심 간선도로 3줄만 깔끔하게 -->
+          <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M 385,220 L 585,185 L 775,260 L 820,455 L 705,685 L 485,685 L 340,545 L 315,355 Z"
+                  stroke="#cbd5e1" stroke-width="4" stroke-dasharray="8 6"/>
+            <path d="M 595,390 L 625,535 L 645,585 L 635,650 L 665,830"
+                  stroke="#fca5a5" stroke-width="3.5" opacity="0.7"/>
+            <path d="M 240,380 L 375,445 L 460,415 L 555,372 L 645,390 L 785,350"
+                  stroke="#cbd5e1" stroke-width="3.5" opacity="0.8"/>
+          </g>
+
+          <!-- 한강 -->
+          <path d="M 222,316 Q 335,358 455,392 T 640,395 T 820,332 L 945,185"
+                fill="none" stroke="#6ba7d6" stroke-width="10" stroke-linecap="round" opacity="0.85"/>
+
+          <!-- 권역명 라벨 (최소한으로 깔끔하게) -->
+          <text x="72" y="545" fill="#2c699a" font-size="20" font-weight="800" opacity="0.75">서해</text>
+          <text x="546" y="328" text-anchor="middle" fill="#b45309" font-size="14" font-weight="900">서울</text>
+          <text x="278" y="482" text-anchor="middle" fill="#1e40af" font-size="14" font-weight="900">인천</text>
+          <text x="765" y="635" text-anchor="middle" fill="#334155" font-size="16" font-weight="900" opacity="0.75">경기도</text>
+          <text x="688" y="340" fill="#2563eb" font-size="11.5" font-weight="800">한강</text>
+        </svg>
+        <div id="metroPinsLayer" class="absolute inset-0"></div>
+      </div>
+
+      <!-- 깔끔한 한 줄 범례 -->
+      <div class="absolute left-3 bottom-3 z-10 bg-stone-950/85 border border-stone-700/70 rounded-full px-3 py-1 text-[10px] text-stone-200 flex items-center gap-3 shadow pointer-events-none">
+        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-400"></span>본점</span>
+        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>지점</span>
+        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-purple-500"></span>건물</span>
+      </div>
+
+      <!-- 줌 버튼 -->
+      <div class="absolute right-3 bottom-3 flex flex-col gap-1.5 z-10">
+        <button onclick="zoomMapBy(0.25)" class="w-9 h-9 rounded-xl bg-stone-900/90 border border-stone-600 text-white text-base font-black shadow active:scale-90">+</button>
+        <button onclick="zoomMapBy(-0.25)" class="w-9 h-9 rounded-xl bg-stone-900/90 border border-stone-600 text-white text-base font-black shadow active:scale-90">−</button>
+        <button onclick="focusMapRegion('all')" class="w-9 h-9 rounded-xl bg-stone-900/90 border border-stone-600 text-amber-300 text-[10px] font-extrabold shadow active:scale-90">전체</button>
+      </div>
+    </div>
+
+    <div id="mapSelectedPanel" class="bg-stone-900/95 border-t border-stone-700 px-3 py-2.5 shrink-0">
+      <div class="max-w-4xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div class="min-w-0">
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span id="selLocRegion" class="text-[10px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded-full font-bold">인천</span>
+            <h3 id="selLocName" class="font-extrabold text-xs sm:text-sm text-white truncate">구월동 로데오</h3>
+            <span id="selLocOwned" class="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-bold">본점 운영중</span>
+          </div>
+          <p id="selLocStats" class="text-[11px] text-stone-300 mt-0.5 truncate">매출배율 1.15배 · 보증금 400만 · 월세 90만</p>
+        </div>
+        <div id="selLocActions" class="flex flex-wrap gap-1.5 shrink-0"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 9. 라디오 & 계절·사운드 정보 모달 ==================== -->
+  <div id="radioModal" class="hidden fixed inset-0 z-40 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-stone-900 border border-amber-700/60 rounded-3xl max-w-sm w-full max-h-[92vh] overflow-y-auto p-5 shadow-2xl space-y-3.5">
+      <div class="flex items-center justify-between">
+        <h2 class="font-extrabold text-base text-amber-200">📻 빈티지 라디오 & 환경음</h2>
+        <button onclick="closeModal('radioModal')" aria-label="닫기" class="w-8 h-8 rounded-full bg-stone-800 text-stone-300 font-bold">✕</button>
+      </div>
+
+      <!-- 지금 재생 중 -->
+      <div class="bg-gradient-to-br from-amber-950/70 to-stone-950 border border-amber-800/50 rounded-2xl p-3.5">
+        <div class="flex items-center gap-3">
+          <div id="radioNowIcon" class="w-12 h-12 shrink-0 rounded-2xl bg-stone-950 border border-amber-800/50 flex items-center justify-center text-2xl">📻</div>
+          <div class="min-w-0 flex-1">
+            <div id="radioNowTitle" class="font-extrabold text-sm text-amber-100 truncate">라디오가 꺼져 있어요</div>
+            <div id="radioNowSub" class="text-[11px] text-stone-400 leading-snug">아래에서 곡을 고르면 바로 재생됩니다</div>
+          </div>
+          <div id="radioEq" class="eq-bars eq-paused" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+        </div>
+        <div class="flex items-center gap-2 mt-3">
+          <button onclick="radioPrev()" aria-label="이전 곡" class="w-10 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 font-bold text-sm">⏮</button>
+          <button id="radioPowerBtn" onclick="toggleAudio()"
+            class="flex-1 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-sm shadow">
+            🔊 배경음 켜기
+          </button>
+          <button onclick="radioNext()" aria-label="다음 곡" class="w-10 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 font-bold text-sm">⏭</button>
+        </div>
+      </div>
+
+      <!-- 곡 선택 -->
+      <div class="space-y-1.5">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-extrabold text-amber-100">🎼 오리지널 BGM (연주곡 4곡)</span>
+          <span class="text-[10px] text-stone-500">별도 프로그램 필요 없음</span>
+        </div>
+        <div id="radioTrackList" class="space-y-1.5"></div>
+        <div class="flex gap-2 pt-0.5">
+          <button id="radioAutoBtn" onclick="setRadioAuto()" class="flex-1 py-2 rounded-xl border border-stone-700 bg-stone-950 text-stone-300 text-xs font-extrabold">🎯 자동 추천</button>
+        </div>
+        <p class="text-[10px] text-stone-500 leading-relaxed">자동 추천: 비 오는 날 Rainy Day · 아침 Morning Cafe · 낮·저녁 Sweet Dessert · 밤 Midnight Jazz 로 자동 전환됩니다. 곡을 직접 고르면 그 곡이 계속 반복돼요.</p>
+      </div>
+
+      <div class="bg-stone-950 border border-stone-800 rounded-2xl p-3.5 space-y-2 text-xs">
+        <div class="flex justify-between">
+          <span class="text-stone-400">현재 계절</span>
+          <span id="radioSeasonText" class="font-bold text-pink-300">🌸 봄 (7일마다 계절 순환)</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-stone-400">창밖 날씨</span>
+          <span id="radioWeatherText" class="font-bold text-sky-300">☀️ 맑음</span>
+        </div>
+        <p class="text-[11px] text-stone-400 pt-1 border-t border-stone-800/80 leading-relaxed">
+          • 비 오는 날: 어떤 곡을 들어도 창밖 빗소리가 자동으로 깔립니다<br>
+          • 눈 오는 겨울: 곡 위에 포근한 종소리가 살짝 더해집니다
+        </p>
+      </div>
+
+      <div class="space-y-2">
+        <div class="flex items-center justify-between text-xs">
+          <span class="font-bold text-amber-100">전체 오디오 음량</span>
+          <span id="volPercentText" class="text-amber-300 font-bold">60%</span>
+        </div>
+        <input id="masterVolSlider" type="range" min="0" max="100" value="60" oninput="updateMasterVolume(this.value)"
+          class="w-full accent-amber-500 cursor-pointer" />
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 10. 경영 장부 & 클라우드 저장 모달 ==================== -->
+  <div id="ledgerModal" class="hidden fixed inset-0 z-40 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-stone-900 border border-stone-700 rounded-3xl max-w-md w-full p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="font-extrabold text-base text-amber-200">📒 경영 장부 & 클라우드 동기화</h2>
+        <button onclick="closeModal('ledgerModal')" class="w-8 h-8 rounded-full bg-stone-800 text-stone-300 font-bold">✕</button>
+      </div>
+
+      <div class="bg-stone-950 border border-stone-800 rounded-2xl p-3.5 space-y-1.5 text-xs">
+        <div class="flex justify-between"><span class="text-stone-400">사장님 아이디</span><span id="ledgerPlayerId" class="font-bold text-sky-300">-</span></div>
+        <div class="flex justify-between"><span class="text-stone-400">사장님 닉네임</span><span id="ledgerNickname" class="font-bold text-white">-</span></div>
+        <div class="flex justify-between"><span class="text-stone-400">보유 현금</span><span id="ledgerCash" class="font-bold text-emerald-400">0원</span></div>
+        <div class="flex justify-between"><span class="text-stone-400">총자산 (현금+부동산+투자)</span><span id="ledgerNetWorth" class="font-extrabold text-amber-300">0원</span></div>
+        <div class="flex justify-between"><span class="text-stone-400">월 고정 임대료 (매 16일 · 계절 전환 시)</span><span id="ledgerRent" class="font-bold text-rose-400">-900,000원</span></div>
+      </div>
+
+      <div class="grid grid-cols-1 gap-2">
+        <button onclick="manualCloudSave()"
+          class="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white font-extrabold text-xs sm:text-sm shadow">
+          ☁️ 지금 클라우드에 저장하기 (다른 기기 이어하기 동기화)
+        </button>
+        <button onclick="logoutAndSwitchAccount()"
+          class="w-full py-2.5 rounded-2xl bg-stone-800 hover:bg-stone-700 text-stone-300 font-bold text-xs">
+          🔄 계정 전환 / 다른 매장 불러오기
+        </button>
+      </div>
+      <p id="cloudStatusText" class="text-[11px] text-center text-stone-400">자동 저장 대기중...</p>
+    </div>
+  </div>
+
+  <!-- ==================== 11. 수도권 실시간 랭킹 모달 ==================== -->
+  <div id="rankModal" class="hidden fixed inset-0 z-40 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-stone-900 border border-yellow-600/50 rounded-3xl max-w-md w-full max-h-[82dvh] flex flex-col p-5 shadow-2xl">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <h2 class="font-extrabold text-base text-yellow-300">🏆 수도권 카페 총자산 랭킹</h2>
+          <p class="text-[11px] text-stone-400">고유 계정당 최고 기록 1건씩 실시간 반영됩니다</p>
+        </div>
+        <button onclick="closeModal('rankModal')" class="w-8 h-8 rounded-full bg-stone-800 text-stone-300 font-bold">✕</button>
+      </div>
+      <div id="rankingList" class="flex-1 overflow-y-auto space-y-2 text-xs"></div>
+    </div>
+  </div>
+
+  <!-- ==================== Firebase & 메인 게임 스크립트 ==================== -->
+  <script type="module" src="js/game.js"></script>
+
+  <!-- ==================== 튜토리얼 / 기능 가이드 모달 ==================== -->
+  <div id="tutorialModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="bg-stone-950 border-2 border-amber-500/60 rounded-3xl w-full max-w-[440px] max-h-[86dvh] flex flex-col overflow-hidden shadow-2xl">
+      <div class="bg-stone-900 px-4 py-3 flex items-center justify-between border-b border-stone-800">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">📖</span>
+          <div>
+            <div class="text-xs sm:text-sm font-black text-amber-200">수도권 카페 타이쿤 핵심 가이드</div>
+            <div id="tutStepSubtitle" class="text-[10px] text-stone-400">STEP 1 / 6 · 처음 시작하는 사장님을 위한 안내</div>
+          </div>
+        </div>
+        <button id="tutCloseTopBtn" onclick="closeTutorialModal()" class="text-xs bg-stone-800 hover:bg-stone-700 text-stone-300 px-2.5 py-1 rounded-full font-bold">닫기</button>
+      </div>
+
+      <!-- 단계 인디케이터 점/탭 -->
+      <div id="tutStepDots" class="bg-stone-900/60 px-4 py-2 flex items-center justify-center gap-1.5 border-b border-stone-800/80"></div>
+
+      <!-- 본문 카드 -->
+      <div id="tutBody" class="p-4 overflow-y-auto flex-1 space-y-3 text-xs sm:text-sm"></div>
+
+      <!-- 하단 네비게이션 -->
+      <div class="bg-stone-900 px-4 py-3 border-t border-stone-800 flex items-center justify-between gap-2">
+        <button id="tutPrevBtn" onclick="prevTutorialStep()" class="px-3.5 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-extrabold transition">
+          ← 이전
+        </button>
+        <div class="text-[11px] text-stone-400 font-bold" id="tutCounterText">1 / 6</div>
+        <button id="tutNextBtn" onclick="nextTutorialStep()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:brightness-110 text-stone-950 text-xs font-black shadow transition">
+          다음 →
+        </button>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
