@@ -23,7 +23,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './' # 예: './my-project'
+          path: './Metro-Cafe-Tycoon-v9.7-Final/metro-cafe-tycoon-v7' # 예: './my-project'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
